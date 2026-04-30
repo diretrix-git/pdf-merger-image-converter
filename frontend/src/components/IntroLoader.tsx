@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 
 interface IntroLoaderProps {
@@ -6,43 +6,52 @@ interface IntroLoaderProps {
 }
 
 /**
- * 1.8s intro animation:
- * - Counter ticks from 0 → 100
+ * ~1.8s intro animation:
  * - Logo fades in
- * - Page wipes open (clip-path reveal)
+ * - Counter ticks 0 → 100
+ * - Screen wipes open with a clip-path reveal
+ *
+ * onComplete is stored in a ref so it never causes the effect to re-run.
  */
 export function IntroLoader({ onComplete }: IntroLoaderProps) {
   const [count, setCount] = useState(0)
-  const [done, setDone] = useState(false)
+  const [exiting, setExiting] = useState(false)
+  const onCompleteRef = useRef(onComplete)
+
+  // Keep ref current without re-running the effect
+  useEffect(() => {
+    onCompleteRef.current = onComplete
+  })
 
   useEffect(() => {
-    const duration = 1400  // ms for counter to reach 100
-    const steps = 60
-    const interval = duration / steps
+    const DURATION_MS = 1400
+    const STEPS = 60
+    const intervalMs = DURATION_MS / STEPS
     let current = 0
 
     const timer = setInterval(() => {
-      current += Math.ceil(100 / steps)
-      if (current >= 100) {
-        current = 100
-        clearInterval(timer)
-        // Short pause then exit
-        setTimeout(() => {
-          setDone(true)
-          setTimeout(onComplete, 600)
-        }, 200)
-      }
+      current = Math.min(current + Math.ceil(100 / STEPS), 100)
       setCount(current)
-    }, interval)
+
+      if (current >= 100) {
+        clearInterval(timer)
+        // Brief pause, then trigger exit animation
+        setTimeout(() => {
+          setExiting(true)
+          // Wait for exit animation to finish before revealing the page
+          setTimeout(() => onCompleteRef.current(), 600)
+        }, 250)
+      }
+    }, intervalMs)
 
     return () => clearInterval(timer)
-  }, [onComplete])
+  }, []) // intentionally empty — runs once on mount
 
   return (
     <AnimatePresence>
-      {!done && (
+      {!exiting && (
         <motion.div
-          key="loader"
+          key="intro-loader"
           className="fixed inset-0 z-[9998] flex flex-col items-center justify-center bg-gray-950"
           exit={{
             clipPath: 'inset(0 0 100% 0)',
@@ -62,20 +71,22 @@ export function IntroLoader({ onComplete }: IntroLoaderProps) {
           </motion.div>
 
           {/* Counter */}
-          <motion.div
+          <motion.p
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.2 }}
             className="font-mono text-6xl font-bold text-gray-100 tabular-nums"
+            aria-live="polite"
+            aria-label={`Loading ${count} percent`}
           >
             {count}
-          </motion.div>
+          </motion.p>
 
           {/* Progress bar */}
           <div className="mt-6 w-48 h-px bg-gray-800 overflow-hidden rounded-full">
             <motion.div
               className="h-full bg-gradient-to-r from-violet-500 to-indigo-500 rounded-full"
-              style={{ width: `${count}%` }}
+              animate={{ width: `${count}%` }}
               transition={{ duration: 0.05 }}
             />
           </div>
