@@ -10,6 +10,8 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@react-three/drei": "9.117.3",
+    "@react-three/fiber": "8.17.10",
     "autoprefixer": "10.4.21",
     "framer-motion": "12.9.4",
     "locomotive-scroll": "4.1.4",
@@ -17,7 +19,8 @@
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
     "sonner": "2.0.3",
-    "tailwindcss": "3.4.17"
+    "tailwindcss": "3.4.17",
+    "three": "0.171.0"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
@@ -27,6 +30,7 @@
     "@types/node": "^24.12.2",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
+    "@types/three": "0.171.0",
     "@vitejs/plugin-react": "4.3.4",
     "@vitest/coverage-v8": "2.1.9",
     "eslint": "^10.2.1",
