@@ -10,8 +10,8 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@react-three/drei": "9.117.3",
-    "@react-three/fiber": "8.17.10",
+    "@react-three/drei": "10.0.6",
+    "@react-three/fiber": "9.1.2",
     "autoprefixer": "10.4.21",
     "framer-motion": "12.9.4",
     "locomotive-scroll": "4.1.4",
