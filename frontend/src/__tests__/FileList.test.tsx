@@ -63,14 +63,14 @@ describe('FileList', () => {
 
   it('shows the correct file count label', () => {
     const files = [makeEntry(), makeEntry(), makeEntry()]
-    render(<FileList files={files} onRemove={vi.fn()} />)
+    render(<FileList files={files} onRemove={vi.fn()} combinedSizeBytes={3 * 512 * 1024} />)
 
-    expect(screen.getByText(/3 files selected/i)).toBeInTheDocument()
+    expect(screen.getByText(/3 files/i)).toBeInTheDocument()
   })
 
   it('shows singular label for a single file', () => {
-    render(<FileList files={[makeEntry()]} onRemove={vi.fn()} />)
-    expect(screen.getByText(/1 file selected/i)).toBeInTheDocument()
+    render(<FileList files={[makeEntry()]} onRemove={vi.fn()} combinedSizeBytes={512 * 1024} />)
+    expect(screen.getByText(/1 file/i)).toBeInTheDocument()
   })
 
   it('renders remove buttons for each file', () => {

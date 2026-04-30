@@ -4,6 +4,7 @@ import type { FileEntry } from '../types'
 interface FileListProps {
   files: FileEntry[]
   onRemove: (id: string) => void
+  combinedSizeBytes?: number
 }
 
 /**
@@ -32,14 +33,34 @@ const itemVariants = {
  * Each item shows the filename and size, and has a remove button.
  * Additions and removals are animated via Framer Motion AnimatePresence.
  */
-export function FileList({ files, onRemove }: FileListProps) {
+export function FileList({ files, onRemove, combinedSizeBytes = 0 }: FileListProps) {
   if (files.length === 0) return null
+
+  const MAX_COMBINED = 50 * 1024 * 1024
+  const usagePercent = Math.min((combinedSizeBytes / MAX_COMBINED) * 100, 100)
+  const isOverLimit = combinedSizeBytes > MAX_COMBINED
 
   return (
     <div className="w-full">
-      <p className="text-xs text-gray-500 mb-2 uppercase tracking-wider font-medium">
-        {files.length} file{files.length !== 1 ? 's' : ''} selected
-      </p>
+      {/* Header row: count + storage bar */}
+      <div className="flex items-center justify-between mb-2">
+        <p className="text-xs text-gray-500 uppercase tracking-wider font-medium">
+          {files.length} file{files.length !== 1 ? 's' : ''}
+        </p>
+        <p className={`text-xs font-medium ${isOverLimit ? 'text-red-400' : 'text-gray-500'}`}>
+          {formatSize(combinedSizeBytes)} / 50 MB
+        </p>
+      </div>
+
+      {/* Storage usage bar */}
+      <div className="w-full h-1 bg-gray-800 rounded-full mb-3 overflow-hidden">
+        <motion.div
+          className={`h-full rounded-full ${isOverLimit ? 'bg-red-500' : 'bg-violet-500'}`}
+          initial={{ width: 0 }}
+          animate={{ width: `${usagePercent}%` }}
+          transition={{ duration: 0.3, ease: 'easeOut' }}
+        />
+      </div>
 
       <ul className="flex flex-col gap-2" aria-label="Selected files">
         <AnimatePresence mode="popLayout" initial={false}>
