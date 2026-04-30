@@ -21,6 +21,9 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from processor import convert_to_images, merge_pdfs
 
+# Import the Poppler skip marker from conftest
+from markers import requires_poppler
+
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -105,6 +108,7 @@ def test_merge_preserves_page_order(page_counts: list[int]) -> None:
 # ---------------------------------------------------------------------------
 
 
+@requires_poppler
 @given(st.integers(min_value=1, max_value=5))
 @settings(max_examples=20)  # pdf2image is slow; keep iterations low
 def test_convert_to_images_correct_count_and_naming(num_pages: int) -> None:
@@ -126,6 +130,7 @@ def test_convert_to_images_correct_count_and_naming(num_pages: int) -> None:
     )
 
 
+@requires_poppler
 def test_convert_to_images_single_page() -> None:
     """Smoke test: a 1-page PDF produces exactly page_1.png."""
     pdf_bytes = make_pdf_bytes(1)
@@ -135,6 +140,7 @@ def test_convert_to_images_single_page() -> None:
         assert zf.namelist() == ["page_1.png"]
 
 
+@requires_poppler
 def test_convert_to_images_returns_valid_zip() -> None:
     """The returned BytesIO must be a valid ZIP file."""
     pdf_bytes = make_pdf_bytes(2)

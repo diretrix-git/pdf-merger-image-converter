@@ -87,15 +87,17 @@ def test_mime_validation_rejects_non_pdf_headers(header, app_ctx):
 
 @given(st.binary(min_size=2048, max_size=4096))
 @settings(max_examples=100)
-def test_mime_validation_rejects_random_bytes(file_bytes: bytes, app_ctx):
+def test_mime_validation_rejects_random_bytes(file_bytes: bytes):
     """
     Property 2: Random byte streams that don't start with the PDF magic bytes
     (%PDF-) should be rejected.
     """
     # Skip if the random bytes happen to start with a valid PDF header
     assume(not file_bytes.startswith(b"%PDF-"))
-    with pytest.raises(Exception):
-        validate_mime_type(file_bytes, "random.pdf")
+    from app import app as flask_app
+    with flask_app.app_context():
+        with pytest.raises(Exception):
+            validate_mime_type(file_bytes, "random.pdf")
 
 
 # ---------------------------------------------------------------------------
@@ -105,19 +107,21 @@ def test_mime_validation_rejects_random_bytes(file_bytes: bytes, app_ctx):
 
 @given(st.integers(min_value=MAX_FILE_SIZE_BYTES + 1, max_value=MAX_FILE_SIZE_BYTES * 2))
 @settings(max_examples=100)
-def test_per_file_size_limit_enforced(size: int, app_ctx):
+def test_per_file_size_limit_enforced(size: int):
     """
     Property 3: Per-file size limit is enforced before processing.
     Any file exceeding MAX_FILE_SIZE_BYTES must be rejected with 400.
     The Processor must never be invoked.
     """
+    from app import app as flask_app
     f = make_file_storage(size)
-    with patch("processor.merge_pdfs") as mock_merge, \
-         patch("processor.convert_to_images") as mock_convert:
-        with pytest.raises(Exception):
-            validate_file_size(f, MAX_FILE_SIZE_BYTES)
-        mock_merge.assert_not_called()
-        mock_convert.assert_not_called()
+    with flask_app.app_context():
+        with patch("processor.merge_pdfs") as mock_merge, \
+             patch("processor.convert_to_images") as mock_convert:
+            with pytest.raises(Exception):
+                validate_file_size(f, MAX_FILE_SIZE_BYTES)
+            mock_merge.assert_not_called()
+            mock_convert.assert_not_called()
 
 
 # ---------------------------------------------------------------------------
@@ -127,28 +131,29 @@ def test_per_file_size_limit_enforced(size: int, app_ctx):
 
 @given(
     st.lists(
-        st.integers(min_value=1, max_value=MAX_COMBINED_SIZE_BYTES // 2),
+        # Each file is between 26 MB and 30 MB, so even 2 files (52 MB+) exceed the 50 MB limit
+        st.integers(min_value=26 * 1024 * 1024, max_value=30 * 1024 * 1024),
         min_size=2,
         max_size=5,
     )
 )
 @settings(max_examples=100)
-def test_combined_size_limit_enforced(sizes: list, app_ctx):
+def test_combined_size_limit_enforced(sizes: list):
     """
     Property 4: Combined size limit is enforced before processing.
     When the sum of all file sizes exceeds MAX_COMBINED_SIZE_BYTES, a 400
     must be returned and the Processor must never be invoked.
     """
-    # Only test cases where the combined size actually exceeds the limit
-    assume(sum(sizes) > MAX_COMBINED_SIZE_BYTES)
-
+    # Sizes are chosen so the combined total always exceeds 50 MB
+    from app import app as flask_app
     files = [make_file_storage(s) for s in sizes]
-    with patch("processor.merge_pdfs") as mock_merge, \
-         patch("processor.convert_to_images") as mock_convert:
-        with pytest.raises(Exception):
-            validate_combined_size(files, MAX_COMBINED_SIZE_BYTES)
-        mock_merge.assert_not_called()
-        mock_convert.assert_not_called()
+    with flask_app.app_context():
+        with patch("processor.merge_pdfs") as mock_merge, \
+             patch("processor.convert_to_images") as mock_convert:
+            with pytest.raises(Exception):
+                validate_combined_size(files, MAX_COMBINED_SIZE_BYTES)
+            mock_merge.assert_not_called()
+            mock_convert.assert_not_called()
 
 
 # ---------------------------------------------------------------------------
@@ -158,14 +163,16 @@ def test_combined_size_limit_enforced(sizes: list, app_ctx):
 
 @given(st.integers(min_value=MAX_PAGE_COUNT + 1, max_value=MAX_PAGE_COUNT + 20))
 @settings(max_examples=50)  # PDF generation is slow; 50 is sufficient
-def test_page_count_limit_enforced(num_pages: int, app_ctx):
+def test_page_count_limit_enforced(num_pages: int):
     """
     Property 6: Page count limit is enforced before processing.
     Any PDF with more than MAX_PAGE_COUNT pages must be rejected with 400
     before any image conversion occurs.
     """
+    from app import app as flask_app
     pdf_bytes = make_pdf_bytes(num_pages)
-    with patch("processor.convert_to_images") as mock_convert:
-        with pytest.raises(Exception):
-            validate_page_count(pdf_bytes, MAX_PAGE_COUNT)
-        mock_convert.assert_not_called()
+    with flask_app.app_context():
+        with patch("processor.convert_to_images") as mock_convert:
+            with pytest.raises(Exception):
+                validate_page_count(pdf_bytes, MAX_PAGE_COUNT)
+            mock_convert.assert_not_called()

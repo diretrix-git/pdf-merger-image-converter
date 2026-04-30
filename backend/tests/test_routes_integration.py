@@ -16,6 +16,7 @@ import pytest
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from app import app as flask_app
+from markers import requires_poppler
 
 
 # ---------------------------------------------------------------------------
@@ -131,6 +132,7 @@ def test_merge_content_disposition_header(client):
 # ---------------------------------------------------------------------------
 
 
+@requires_poppler
 def test_convert_3_page_pdf_returns_zip_with_correct_files(client):
     """POST /to-images with a 3-page PDF returns a ZIP with page_1.png, page_2.png, page_3.png."""
     response = client.post(
@@ -171,6 +173,7 @@ def test_convert_returns_400_for_non_pdf(client):
     assert response.status_code == 400
 
 
+@requires_poppler
 def test_convert_content_disposition_header(client):
     """Convert response includes correct Content-Disposition header."""
     response = client.post(

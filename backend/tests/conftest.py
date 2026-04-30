@@ -1,5 +1,5 @@
 """
-Shared pytest fixtures for the backend test suite.
+Shared pytest fixtures and configuration for the backend test suite.
 """
 
 import sys
@@ -9,6 +9,8 @@ import pytest
 
 # Allow imports from the backend package root
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+# Allow imports from the tests directory (for markers.py)
+sys.path.insert(0, os.path.dirname(__file__))
 
 
 @pytest.fixture
