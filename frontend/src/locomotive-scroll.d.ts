@@ -5,11 +5,6 @@ declare module 'locomotive-scroll' {
     multiplier?: number
     lerp?: number
     class?: string
-    scrollbarClass?: string
-    scrollingClass?: string
-    draggingClass?: string
-    smoothClass?: string
-    initClass?: string
     getSpeed?: boolean
     getDirection?: boolean
     scrollFromAnywhere?: boolean
