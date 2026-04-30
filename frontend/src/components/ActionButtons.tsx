@@ -1,4 +1,5 @@
 import { motion, AnimatePresence } from 'framer-motion'
+import { MagneticButton } from './MagneticButton'
 
 const MAX_COMBINED_SIZE_BYTES = 50 * 1024 * 1024 // 50 MB
 
@@ -78,9 +79,7 @@ export function ActionButtons({
 
       <div className="flex gap-3">
         {/* Merge button */}
-        <motion.button
-          whileHover={mergeDisabled ? {} : { scale: 1.02 }}
-          whileTap={mergeDisabled ? {} : { scale: 0.98 }}
+        <MagneticButton
           onClick={onMerge}
           disabled={mergeDisabled}
           aria-label="Merge PDFs"
@@ -99,12 +98,10 @@ export function ActionButtons({
         >
           {isLoading ? <Spinner /> : <span aria-hidden="true">🔗</span>}
           <span>Merge PDFs</span>
-        </motion.button>
+        </MagneticButton>
 
         {/* Convert button */}
-        <motion.button
-          whileHover={convertDisabled ? {} : { scale: 1.02 }}
-          whileTap={convertDisabled ? {} : { scale: 0.98 }}
+        <MagneticButton
           onClick={onConvert}
           disabled={convertDisabled}
           aria-label="Convert to Images"
@@ -123,7 +120,7 @@ export function ActionButtons({
         >
           {isLoading ? <Spinner /> : <span aria-hidden="true">🖼️</span>}
           <span>Convert to Images</span>
-        </motion.button>
+        </MagneticButton>
       </div>
 
       {/* Convert hint */}
