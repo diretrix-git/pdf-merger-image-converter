@@ -1,4 +1,6 @@
 import io
+import shutil
+import warnings
 
 from flask import Flask, jsonify, request, send_file
 from flask_cors import CORS
@@ -19,6 +21,16 @@ CORS(app, origins=["http://localhost:5173"])
 # Flask will reject requests whose body exceeds this limit before they hit a route.
 app.config["MAX_CONTENT_LENGTH"] = MAX_COMBINED_SIZE_BYTES
 
+# Warn at startup if Poppler is missing — the /to-images endpoint will fail without it.
+if shutil.which("pdftoppm") is None:
+    warnings.warn(
+        "Poppler (pdftoppm) is not found in PATH. "
+        "The /to-images endpoint will return a 500 error until Poppler is installed. "
+        "See README.md for installation instructions.",
+        RuntimeWarning,
+        stacklevel=1,
+    )
+
 
 # ---------------------------------------------------------------------------
 # Error handlers
@@ -35,6 +47,29 @@ def request_entity_too_large(error):
 def internal_server_error(error):
     """Catch-all for unexpected server errors — never expose stack traces."""
     return jsonify({"error": "An unexpected error occurred."}), 500
+
+
+@app.errorhandler(Exception)
+def handle_unexpected_exception(error):
+    """
+    Catch unhandled exceptions and return a JSON 500 instead of an HTML page.
+    Surfaces a helpful message for known dependency issues (e.g. Poppler missing).
+    """
+    import logging
+    logging.exception("Unhandled exception")
+
+    message = "An unexpected error occurred."
+
+    # Surface a helpful message when Poppler is not installed
+    error_str = str(error)
+    if "poppler" in error_str.lower() or "pdftoppm" in error_str.lower() or "pdfinfo" in error_str.lower():
+        message = (
+            "Poppler is not installed or not in PATH. "
+            "Install it and add its bin/ directory to PATH, then restart the server. "
+            "See README.md for instructions."
+        )
+
+    return jsonify({"error": message}), 500
 
 
 # ---------------------------------------------------------------------------
@@ -122,6 +157,20 @@ def to_images():
         as_attachment=True,
         download_name="pages.zip",
     )
+
+
+@app.route("/health", methods=["GET"])
+def health():
+    """Health check — reports whether optional dependencies are available."""
+    poppler_ok = shutil.which("pdftoppm") is not None
+    return jsonify({
+        "status": "ok",
+        "poppler": poppler_ok,
+        "poppler_message": None if poppler_ok else (
+            "Poppler is not installed or not in PATH. "
+            "Image conversion will not work until it is installed."
+        ),
+    })
 
 
 if __name__ == "__main__":
