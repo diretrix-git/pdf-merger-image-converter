@@ -13,6 +13,9 @@ export function CustomCursor() {
   const ringRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
+    // Don't run on touch devices — no cursor needed
+    if (window.matchMedia('(hover: none) and (pointer: coarse)').matches) return
+
     const dot = dotRef.current
     const ring = ringRef.current
     if (!dot || !ring) return

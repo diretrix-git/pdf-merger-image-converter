@@ -33,20 +33,26 @@ export default function App() {
     extension: string
   }>({ open: false, blob: null, defaultName: '', extension: '' })
 
-  // Locomotive Scroll
+  // Locomotive Scroll — desktop only (mobile uses native scroll)
   const scrollContainerRef = useRef<HTMLDivElement>(null)
   const locomotiveRef = useRef<LocomotiveScroll | null>(null)
 
   useEffect(() => {
-    if (!scrollContainerRef.current) return
+    // Disable Locomotive Scroll on touch devices — it conflicts with native touch scroll
+    const isTouchDevice = window.matchMedia('(hover: none) and (pointer: coarse)').matches
+    if (isTouchDevice || !scrollContainerRef.current) return
+
     locomotiveRef.current = new LocomotiveScroll({
       el: scrollContainerRef.current,
       smooth: true,
       multiplier: 0.9,
     })
+    // Expose instance so Navbar can use scrollTo for accurate section navigation
+    ;(window as any).__locomotiveScroll = locomotiveRef.current
     return () => {
       locomotiveRef.current?.destroy()
       locomotiveRef.current = null
+      delete (window as any).__locomotiveScroll
     }
   }, [])
 
@@ -103,6 +109,7 @@ export default function App() {
     setState((prev) => ({ ...prev, isLoading: true }))
     try {
       const blob = await convertToImages(state.files[0].file)
+      // ZIP contains page_1.png … page_N.png — name it clearly
       setDownloadModal({ open: true, blob, defaultName: 'pages', extension: 'zip' })
     } catch (err) {
       addToast({
@@ -145,8 +152,8 @@ export default function App() {
       {/* Custom cursor — dot + spring follower */}
       <CustomCursor />
 
-      {/* Hide default cursor globally */}
-      <style>{`* { cursor: none !important; }`}</style>
+      {/* Hide default cursor on desktop only */}
+      <style>{`@media (hover: hover) and (pointer: fine) { * { cursor: none !important; } }`}</style>
       {/* ------------------------------------------------------------------ */}
       {/* Navbar                                                               */}
       {/* ------------------------------------------------------------------ */}
@@ -158,7 +165,7 @@ export default function App() {
       <section
         id="home"
         data-scroll-section
-        className="relative flex flex-col items-center justify-center min-h-screen px-6 pt-20 pb-16 overflow-hidden"
+        className="relative flex flex-col items-center justify-center min-h-screen px-6 pt-28 pb-16 overflow-hidden"
       >
         {/* Parallax background */}
         <div
@@ -179,12 +186,15 @@ export default function App() {
           transition={{ duration: 0.6, ease: 'easeOut' }}
           className="text-center max-w-2xl mb-10"
         >
-          <h1 className="text-4xl sm:text-5xl font-bold tracking-tight mb-4 bg-gradient-to-r from-violet-300 to-indigo-300 bg-clip-text text-transparent">
-            PDF Merger &amp; Image Converter
+          <h1 className="text-4xl sm:text-5xl font-bold tracking-tight mb-4">
+            <span className="bg-gradient-to-r from-violet-300 to-indigo-300 bg-clip-text text-transparent">
+              Merge
+            </span>
+            <span className="text-gray-200 font-light">Snap</span>
           </h1>
           <p className="text-lg text-gray-400 leading-relaxed">
             Merge multiple PDFs into one, or convert any PDF's pages into
-            downloadable PNG images — processed in-memory, nothing stored.
+            PNG images — processed in-memory, nothing stored.
           </p>
         </motion.div>
 
@@ -247,7 +257,7 @@ export default function App() {
       <section
         id="how-it-works"
         data-scroll-section
-        className="py-24 px-6 flex flex-col items-center"
+        className="min-h-screen py-24 px-6 flex flex-col items-center justify-center"
       >
         <motion.div
           initial={{ opacity: 0, y: 30 }}
@@ -304,7 +314,7 @@ export default function App() {
       <section
         id="features"
         data-scroll-section
-        className="py-24 px-6 flex flex-col items-center bg-gray-900/30"
+        className="min-h-screen py-24 px-6 flex flex-col items-center justify-center bg-gray-900/30"
       >
         <motion.div
           initial={{ opacity: 0, y: 30 }}
@@ -373,7 +383,7 @@ export default function App() {
         data-scroll-section
         className="py-8 px-6 text-center text-xs text-gray-600 border-t border-gray-800"
       >
-        <p>PDF Merger &amp; Image Converter — runs locally, stores nothing.</p>
+        <p>MergeSnap — runs locally, stores nothing.</p>
       </footer>
 
       {/* ------------------------------------------------------------------ */}

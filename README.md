@@ -1,8 +1,8 @@
-# PDF Merger & Image Converter
+# MergeSnap
 
 A personal-use web app with two features:
 - **Merge PDFs** — combine multiple PDF files into one, in order
-- **Convert to Images** — convert each page of a PDF into a downloadable PNG, packaged as a ZIP
+- **Convert to PNGs** — convert each page of a PDF into a PNG image, downloaded as a ZIP archive
 
 ## Stack
 

@@ -90,7 +90,9 @@ export function DownloadModal({
                   Name your file
                 </h2>
                 <p className="text-sm text-gray-400">
-                  Choose a name before the download starts.
+                  {extension === 'zip'
+                    ? 'Your pages will download as a ZIP containing one PNG per page.'
+                    : 'Choose a name before the download starts.'}
                 </p>
               </div>
 

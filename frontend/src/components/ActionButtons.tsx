@@ -122,7 +122,7 @@ export function ActionButtons({
           `}
         >
           {isLoading ? <Spinner /> : <span aria-hidden="true">🖼️</span>}
-          <span>Convert to Images</span>
+          <span>Convert to PNGs</span>
         </motion.button>
       </div>
 
