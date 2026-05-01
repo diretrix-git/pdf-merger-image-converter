@@ -16,10 +16,8 @@ Validation is designed to run cheapest-first:
 """
 
 import io
-from typing import Union
 
 import magic
-import pypdf
 from flask import abort, jsonify
 from werkzeug.datastructures import FileStorage
 
@@ -237,13 +235,21 @@ def validate_page_count(pdf_bytes: bytes, max_pages: int) -> None:
     """
     Abort with 400 if the PDF contains more than max_pages pages.
 
+    Uses pikepdf which reads only the page tree structure — much cheaper
+    than loading the full file content. Called early in the validation
+    pipeline (right after magic bytes) so a 5000-page PDF is rejected
+    before any heavy processing occurs.
+
     Args:
         pdf_bytes: Raw bytes of the PDF file.
         max_pages: Maximum allowed page count.
     """
+    import pikepdf
     try:
-        reader = pypdf.PdfReader(io.BytesIO(pdf_bytes))
-        page_count = len(reader.pages)
+        with pikepdf.open(io.BytesIO(pdf_bytes)) as pdf:
+            page_count = len(pdf.pages)
+    except pikepdf.PasswordError:
+        _abort_400("Could not read the PDF file. It is password-protected.")
     except Exception:
         _abort_400("Could not read the PDF file. It may be corrupted.")
 

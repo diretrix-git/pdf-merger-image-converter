@@ -98,7 +98,7 @@ def handle_unexpected_exception(error):
 
 
 @app.route("/merge", methods=["POST"])
-@limiter.limit("10 per minute")
+@limiter.limit("10 per minute; 50 per day")
 def merge():
     """
     Accept multiple PDF files and return a single merged PDF.
@@ -161,7 +161,7 @@ def merge():
 
 
 @app.route("/to-images", methods=["POST"])
-@limiter.limit("10 per minute")
+@limiter.limit("10 per minute; 50 per day")
 def to_images():
     """
     Accept a single PDF file and return a ZIP archive of PNG images (one per page).
@@ -198,9 +198,9 @@ def to_images():
     safe_name = sanitize_filename(file.filename or "upload.pdf")
     validate_mime_type(raw, safe_name)
     validate_magic_bytes(raw, safe_name)
+    validate_page_count(raw, MAX_PAGE_COUNT)      # Early — before expensive checks
     validate_not_encrypted(raw, safe_name)
     validate_uncompressed_size(raw, safe_name, MAX_UNCOMPRESSED_SIZE_BYTES)
-    validate_page_count(raw, MAX_PAGE_COUNT)
 
     output_stream, mimetype = convert_to_images(raw, dpi=CONVERSION_DPI)
 
