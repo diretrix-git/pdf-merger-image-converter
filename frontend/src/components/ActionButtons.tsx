@@ -1,6 +1,7 @@
 ﻿import { motion, AnimatePresence } from 'framer-motion'
 
 const MAX_COMBINED_SIZE_BYTES = 50 * 1024 * 1024 // 50 MB
+const MAX_FILES_PER_MERGE = 8
 
 interface ActionButtonsProps {
   fileCount: number
@@ -72,6 +73,21 @@ export function ActionButtons({
             className="text-xs text-gray-500 text-center"
           >
             Add at least one more file to merge
+          </motion.p>
+        )}
+      </AnimatePresence>
+
+      {/* File count limit hint */}
+      <AnimatePresence>
+        {fileCount >= MAX_FILES_PER_MERGE && !isOverLimit && (
+          <motion.p
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="text-xs text-amber-400 text-center"
+            role="status"
+          >
+            Maximum {MAX_FILES_PER_MERGE} files reached. Remove a file to add more.
           </motion.p>
         )}
       </AnimatePresence>

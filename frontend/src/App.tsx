@@ -125,6 +125,8 @@ export default function App() {
     if (downloadModal.blob) {
       downloadBlob(downloadModal.blob, filename)
       addToast({ type: 'success', message: `"${filename}" download started.` })
+      // Clear files and revoke blob URL to prevent memory leaks
+      setState(prev => ({ ...prev, files: [] }))
     }
     setDownloadModal({ open: false, blob: null, defaultName: '', extension: '' })
   }
@@ -196,6 +198,10 @@ export default function App() {
             Merge multiple PDFs into one, or convert any PDF's pages into
             PNG images — processed in-memory, nothing stored.
           </p>
+          <div className="mt-4 flex items-center justify-center gap-2 text-xs text-gray-500">
+            <span>🔒</span>
+            <span>Files are automatically deleted after processing and never stored permanently.</span>
+          </div>
         </motion.div>
 
         {/* Tool card */}
@@ -210,6 +216,7 @@ export default function App() {
             onFilesAdded={handleFilesAdded}
             onToast={addToast}
             disabled={state.isLoading}
+            currentFileCount={state.files.length}
           />
 
           {/* File list with count + storage */}

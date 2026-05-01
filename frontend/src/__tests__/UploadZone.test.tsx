@@ -18,9 +18,10 @@ function makeFile(name: string, type: string, sizeBytes = 1024): File {
 
 function renderUploadZone(
   onFilesAdded = vi.fn<[FileEntry[]], void>(),
-  onToast = vi.fn<[Omit<Toast, 'id'>], void>()
+  onToast = vi.fn<[Omit<Toast, 'id'>], void>(),
+  currentFileCount = 0
 ) {
-  render(<UploadZone onFilesAdded={onFilesAdded} onToast={onToast} />)
+  render(<UploadZone onFilesAdded={onFilesAdded} onToast={onToast} currentFileCount={currentFileCount} />)
   return { onFilesAdded, onToast }
 }
 
@@ -63,13 +64,13 @@ describe('UploadZone', () => {
     expect(onToast.mock.calls[0][0].message).toContain('image.png')
   })
 
-  it('rejects a file exceeding 20 MB and shows an error toast', () => {
+  it('rejects a file exceeding 50 MB and shows an error toast', () => {
     const { onFilesAdded, onToast } = renderUploadZone()
     const input = document.querySelector('input[type="file"]') as HTMLInputElement
 
-    // Create a file object with a size property exceeding 20 MB
+    // Create a file object with a size property exceeding 50 MB
     const oversizedFile = new File(['x'], 'big.pdf', { type: 'application/pdf' })
-    Object.defineProperty(oversizedFile, 'size', { value: 21 * 1024 * 1024 })
+    Object.defineProperty(oversizedFile, 'size', { value: 51 * 1024 * 1024 })
 
     fireEvent.change(input, { target: { files: [oversizedFile] } })
 
@@ -100,5 +101,24 @@ describe('UploadZone', () => {
 
     const zone = screen.getByRole('button')
     expect(zone).toHaveAttribute('aria-disabled', 'true')
+  })
+
+  it('rejects all files when currentFileCount is already at the 8-file limit', () => {
+    const onFilesAdded = vi.fn()
+    const onToast = vi.fn()
+    render(
+      <UploadZone
+        onFilesAdded={onFilesAdded}
+        onToast={onToast}
+        currentFileCount={8}
+      />
+    )
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement
+    const file = makePdfFile('extra.pdf')
+    fireEvent.change(input, { target: { files: [file] } })
+
+    expect(onFilesAdded).not.toHaveBeenCalled()
+    expect(onToast).toHaveBeenCalledOnce()
+    expect(onToast.mock.calls[0][0].type).toBe('error')
   })
 })

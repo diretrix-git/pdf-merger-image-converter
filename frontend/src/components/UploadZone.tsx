@@ -2,12 +2,14 @@ import { useRef, useState, useCallback } from 'react'
 import { motion } from 'framer-motion'
 import type { FileEntry, Toast } from '../types'
 
-const MAX_FILE_SIZE_BYTES = 20 * 1024 * 1024 // 20 MB
+const MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024 // 50 MB
+const MAX_FILES_PER_MERGE = 8
 
 interface UploadZoneProps {
   onFilesAdded: (entries: FileEntry[]) => void
   onToast: (toast: Omit<Toast, 'id'>) => void
   disabled?: boolean
+  currentFileCount?: number
 }
 
 /**
@@ -15,11 +17,17 @@ interface UploadZoneProps {
  *
  * Validates each dropped/selected file client-side before calling onFilesAdded:
  * - Rejects non-PDF MIME types
- * - Rejects files exceeding 20 MB
+ * - Rejects files exceeding 50 MB
+ * - Rejects uploads that would push the total above MAX_FILES_PER_MERGE (8)
  *
  * Uses the HTML5 Drag and Drop API directly (no external library).
  */
-export function UploadZone({ onFilesAdded, onToast, disabled = false }: UploadZoneProps) {
+export function UploadZone({
+  onFilesAdded,
+  onToast,
+  disabled = false,
+  currentFileCount = 0,
+}: UploadZoneProps) {
   const [isDragOver, setIsDragOver] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
 
@@ -27,6 +35,16 @@ export function UploadZone({ onFilesAdded, onToast, disabled = false }: UploadZo
     (rawFiles: FileList | File[]) => {
       const files = Array.from(rawFiles)
       const valid: FileEntry[] = []
+
+      // Check if adding these files would exceed the per-merge file count limit
+      const availableSlots = MAX_FILES_PER_MERGE - currentFileCount
+      if (availableSlots <= 0) {
+        onToast({
+          type: 'error',
+          message: `Maximum ${MAX_FILES_PER_MERGE} files allowed per merge. Remove some files first.`,
+        })
+        return
+      }
 
       for (const file of files) {
         if (file.type !== 'application/pdf') {
@@ -40,7 +58,7 @@ export function UploadZone({ onFilesAdded, onToast, disabled = false }: UploadZo
         if (file.size > MAX_FILE_SIZE_BYTES) {
           onToast({
             type: 'error',
-            message: `"${file.name}" exceeds the 20 MB limit (${(file.size / 1024 / 1024).toFixed(1)} MB).`,
+            message: `"${file.name}" exceeds the 50 MB limit (${(file.size / 1024 / 1024).toFixed(1)} MB).`,
           })
           continue
         }
@@ -53,11 +71,21 @@ export function UploadZone({ onFilesAdded, onToast, disabled = false }: UploadZo
         })
       }
 
-      if (valid.length > 0) {
-        onFilesAdded(valid)
+      // Trim to available slots and warn if some were dropped
+      const accepted = valid.slice(0, availableSlots)
+      const dropped = valid.length - accepted.length
+      if (dropped > 0) {
+        onToast({
+          type: 'error',
+          message: `Only ${availableSlots} more file${availableSlots === 1 ? '' : 's'} can be added (limit: ${MAX_FILES_PER_MERGE}).`,
+        })
+      }
+
+      if (accepted.length > 0) {
+        onFilesAdded(accepted)
       }
     },
-    [onFilesAdded, onToast]
+    [onFilesAdded, onToast, currentFileCount]
   )
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -145,7 +173,7 @@ export function UploadZone({ onFilesAdded, onToast, disabled = false }: UploadZo
       </p>
 
       {/* Constraints */}
-      <p className="text-xs text-gray-500">PDF only · 20 MB per file · 50 MB total</p>
+      <p className="text-xs text-gray-500">PDF only · 50 MB per file · 50 MB total · max 8 files</p>
 
       {/* Hidden file input */}
       <input
