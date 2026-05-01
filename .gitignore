@@ -7,3 +7,6 @@ Thumbs.db
 .idea/
 *.swp
 *.swo
+
+# AI knowledge base — local only, not tracked in git
+PROJECT.md
