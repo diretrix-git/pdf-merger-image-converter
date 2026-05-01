@@ -5,10 +5,14 @@ All functions raise a Flask abort(400) with a JSON error body on failure.
 Validation is designed to run cheapest-first:
   1. Files present
   2. Minimum file count (merge only)
-  3. Per-file size (no content read yet)
-  4. Combined size
-  5. MIME type (reads first 2048 bytes)
-  6. Page count (full PDF parse — convert only)
+  3. File count limit (merge only)
+  4. Per-file size (no content read yet)
+  5. Combined size
+  6. MIME type (reads first 2048 bytes)
+  7. Magic bytes check (%PDF-)
+  8. Encryption check (pikepdf)
+  9. Uncompressed size / bomb protection (pikepdf)
+  10. Page count (full PDF parse — convert only)
 """
 
 import io
@@ -51,6 +55,21 @@ def validate_minimum_files(files: list, minimum: int) -> None:
     if len(files) < minimum:
         _abort_400(
             f"At least {minimum} PDF files are required. "
+            f"Received {len(files)}."
+        )
+
+
+def validate_file_count(files: list, max_count: int) -> None:
+    """
+    Abort with 400 if more than max_count files are provided.
+
+    Args:
+        files:     List of FileStorage objects.
+        max_count: Maximum allowed file count.
+    """
+    if len(files) > max_count:
+        _abort_400(
+            f"Maximum {max_count} files allowed per request. "
             f"Received {len(files)}."
         )
 
@@ -132,6 +151,86 @@ def validate_mime_type(file_bytes: bytes, filename: str) -> None:
 
     if detected != ALLOWED_MIME_TYPE:
         _abort_400(f"File '{filename}' is not a valid PDF.")
+
+
+def validate_magic_bytes(file_bytes: bytes, filename: str) -> None:
+    """
+    Check actual PDF magic bytes (%PDF-), not just MIME type.
+
+    This provides a fast, cheap secondary check that the file starts with
+    the canonical PDF header before any deeper parsing occurs.
+
+    Args:
+        file_bytes: Raw bytes of the uploaded file.
+        filename:   Sanitized filename used in the error message.
+    """
+    if not file_bytes.startswith(b"%PDF-"):
+        _abort_400(f"File '{filename}' is not a valid PDF (invalid header).")
+
+
+def validate_not_encrypted(pdf_bytes: bytes, filename: str) -> None:
+    """
+    Abort with 400 if the PDF is password-protected/encrypted.
+
+    Uses pikepdf to attempt opening the file. A PasswordError means the
+    file requires a password and cannot be processed.
+
+    Args:
+        pdf_bytes: Raw bytes of the PDF file.
+        filename:  Sanitized filename used in the error message.
+    """
+    import pikepdf
+    try:
+        with pikepdf.open(io.BytesIO(pdf_bytes)) as pdf:
+            pass  # Opens fine — not encrypted
+    except pikepdf.PasswordError:
+        _abort_400(
+            f"File '{filename}' is password-protected. "
+            "Please remove the password before uploading."
+        )
+    except Exception:
+        _abort_400(f"File '{filename}' could not be read. It may be corrupted.")
+
+
+def validate_uncompressed_size(pdf_bytes: bytes, filename: str, max_bytes: int) -> None:
+    """
+    PDF bomb protection — estimate uncompressed size by reading all stream objects.
+
+    Aborts with 400 if the estimated uncompressed size exceeds max_bytes.
+    This prevents decompression bombs (tiny compressed PDFs that expand to
+    gigabytes of data) from exhausting server memory.
+
+    All processing is in-memory (io.BytesIO) — no files are written to disk.
+
+    Args:
+        pdf_bytes: Raw bytes of the PDF file.
+        filename:  Sanitized filename used in the error message.
+        max_bytes: Maximum allowed uncompressed size in bytes.
+    """
+    import pikepdf
+    try:
+        total = 0
+        with pikepdf.open(io.BytesIO(pdf_bytes)) as pdf:
+            for obj in pdf.objects:
+                try:
+                    if isinstance(obj, pikepdf.Stream):
+                        total += len(obj.read_bytes())
+                    elif hasattr(obj, 'read_bytes'):
+                        total += len(obj.read_bytes())
+                except Exception:
+                    pass
+                if total > max_bytes:
+                    _abort_400(
+                        f"File '{filename}' appears to be a compressed bomb "
+                        f"(uncompressed size exceeds {max_bytes // (1024 * 1024)} MB)."
+                    )
+    except Exception as e:
+        # If we already aborted, re-raise the HTTPException
+        from werkzeug.exceptions import HTTPException
+        if isinstance(e, HTTPException):
+            raise
+        # Otherwise treat as corrupted
+        _abort_400(f"File '{filename}' could not be read. It may be corrupted.")
 
 
 def validate_page_count(pdf_bytes: bytes, max_pages: int) -> None:
