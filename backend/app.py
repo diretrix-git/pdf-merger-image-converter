@@ -149,10 +149,20 @@ def to_images():
     validate_mime_type(raw, sanitize_filename(file.filename or "upload.pdf"))
     validate_page_count(raw, MAX_PAGE_COUNT)
 
-    zip_stream = convert_to_images(raw, dpi=CONVERSION_DPI)
+    output_stream, mimetype = convert_to_images(raw, dpi=CONVERSION_DPI)
 
+    if mimetype == "image/png":
+        # Single-page PDF — return a raw PNG
+        return send_file(
+            output_stream,
+            mimetype="image/png",
+            as_attachment=True,
+            download_name="page.png",
+        )
+
+    # Multi-page PDF — return a ZIP of PNGs
     return send_file(
-        zip_stream,
+        output_stream,
         mimetype="application/zip",
         as_attachment=True,
         download_name="pages.zip",

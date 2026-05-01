@@ -109,19 +109,18 @@ def test_merge_preserves_page_order(page_counts: list[int]) -> None:
 
 
 @requires_poppler
-@given(st.integers(min_value=1, max_value=5))
-@settings(max_examples=20)  # pdf2image is slow; keep iterations low
-def test_convert_to_images_correct_count_and_naming(num_pages: int) -> None:
+@given(st.integers(min_value=2, max_value=5))
+@settings(max_examples=20, deadline=None)  # pdf2image is slow; disable deadline
+def test_convert_to_images_multipage_returns_zip(num_pages: int) -> None:
     """
-    Property 5: Image conversion produces correct page count and naming.
-
-    For any valid PDF with N pages (1 ≤ N ≤ 5 for speed), the ZIP must
-    contain exactly N files named page_1.png through page_N.png.
+    Property 5 (multi-page): For N > 1 pages, returns a ZIP with
+    exactly N files named page_1.png through page_N.png.
     """
     pdf_bytes = make_pdf_bytes(num_pages)
-    zip_stream = convert_to_images(pdf_bytes, dpi=72)  # Low DPI for test speed
+    stream, mimetype = convert_to_images(pdf_bytes, dpi=72)
 
-    with zipfile.ZipFile(zip_stream) as zf:
+    assert mimetype == "application/zip"
+    with zipfile.ZipFile(stream) as zf:
         names = set(zf.namelist())
 
     expected = {f"page_{i}.png" for i in range(1, num_pages + 1)}
@@ -131,19 +130,23 @@ def test_convert_to_images_correct_count_and_naming(num_pages: int) -> None:
 
 
 @requires_poppler
-def test_convert_to_images_single_page() -> None:
-    """Smoke test: a 1-page PDF produces exactly page_1.png."""
+def test_convert_to_images_single_page_returns_png() -> None:
+    """Single-page PDF returns a raw PNG (image/png), not a ZIP."""
     pdf_bytes = make_pdf_bytes(1)
-    zip_stream = convert_to_images(pdf_bytes, dpi=72)
+    stream, mimetype = convert_to_images(pdf_bytes, dpi=72)
 
-    with zipfile.ZipFile(zip_stream) as zf:
-        assert zf.namelist() == ["page_1.png"]
+    assert mimetype == "image/png"
+    # Verify it's a valid PNG by checking the magic bytes
+    stream.seek(0)
+    header = stream.read(8)
+    assert header == b"\x89PNG\r\n\x1a\n", "Expected PNG magic bytes"
 
 
 @requires_poppler
-def test_convert_to_images_returns_valid_zip() -> None:
-    """The returned BytesIO must be a valid ZIP file."""
+def test_convert_to_images_multipage_returns_valid_zip() -> None:
+    """Multi-page PDF returns a valid ZIP file."""
     pdf_bytes = make_pdf_bytes(2)
-    zip_stream = convert_to_images(pdf_bytes, dpi=72)
+    stream, mimetype = convert_to_images(pdf_bytes, dpi=72)
 
-    assert zipfile.is_zipfile(zip_stream)
+    assert mimetype == "application/zip"
+    assert zipfile.is_zipfile(stream)

@@ -40,11 +40,14 @@ def merge_pdfs(pdf_streams: list[io.BytesIO]) -> io.BytesIO:
     return output
 
 
-def convert_to_images(pdf_bytes: bytes, dpi: int = 150) -> io.BytesIO:
+def convert_to_images(pdf_bytes: bytes, dpi: int = 150) -> tuple[io.BytesIO, str]:
     """
-    Convert each page of a PDF to a PNG image and package them in a ZIP archive.
+    Convert each page of a PDF to a PNG image.
 
-    Images are named page_1.png through page_N.png (1-based index).
+    - 1-page PDF  → returns a raw PNG BytesIO + mimetype "image/png"
+    - Multi-page  → returns a ZIP BytesIO + mimetype "application/zip"
+      ZIP entries are named page_1.png … page_N.png (1-based).
+
     All operations are in-memory — no temporary files are created.
 
     Args:
@@ -52,22 +55,25 @@ def convert_to_images(pdf_bytes: bytes, dpi: int = 150) -> io.BytesIO:
         dpi:       Resolution for rendering. Defaults to 150 DPI.
 
     Returns:
-        A BytesIO object containing the ZIP archive, seeked to position 0.
+        Tuple of (BytesIO seeked to 0, mimetype string).
     """
-    # Convert PDF pages to PIL Image objects
     images = convert_from_bytes(pdf_bytes, dpi=dpi)
 
-    # Build the ZIP archive in memory
+    if len(images) == 1:
+        # Single page — return a raw PNG, no ZIP needed
+        png_buffer = io.BytesIO()
+        images[0].save(png_buffer, format="PNG")
+        png_buffer.seek(0)
+        return png_buffer, "image/png"
+
+    # Multiple pages — package into a ZIP
     zip_buffer = io.BytesIO()
     with zipfile.ZipFile(zip_buffer, mode="w", compression=zipfile.ZIP_DEFLATED) as zf:
         for index, image in enumerate(images, start=1):
-            # Save each PIL image as PNG into a BytesIO buffer
             img_buffer = io.BytesIO()
             image.save(img_buffer, format="PNG")
             img_buffer.seek(0)
-
-            # Write into the ZIP with the page_{n}.png naming convention
             zf.writestr(f"page_{index}.png", img_buffer.read())
 
     zip_buffer.seek(0)
-    return zip_buffer
+    return zip_buffer, "application/zip"

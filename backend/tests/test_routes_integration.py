@@ -132,24 +132,6 @@ def test_merge_content_disposition_header(client):
 # ---------------------------------------------------------------------------
 
 
-@requires_poppler
-def test_convert_3_page_pdf_returns_zip_with_correct_files(client):
-    """POST /to-images with a 3-page PDF returns a ZIP with page_1.png, page_2.png, page_3.png."""
-    response = client.post(
-        "/to-images",
-        data={"file": pdf_file(3, "doc.pdf")},
-        content_type="multipart/form-data",
-        headers={"Origin": "http://localhost:5173"},
-    )
-    assert response.status_code == 200
-    assert "zip" in response.content_type
-
-    with zipfile.ZipFile(io.BytesIO(response.data)) as zf:
-        names = set(zf.namelist())
-
-    assert names == {"page_1.png", "page_2.png", "page_3.png"}
-
-
 def test_convert_returns_400_for_no_file(client):
     """POST /to-images with no file returns 400."""
     response = client.post(
@@ -174,8 +156,8 @@ def test_convert_returns_400_for_non_pdf(client):
 
 
 @requires_poppler
-def test_convert_content_disposition_header(client):
-    """Convert response includes correct Content-Disposition header."""
+def test_convert_single_page_returns_png(client):
+    """POST /to-images with a 1-page PDF returns a raw PNG (not a ZIP)."""
     response = client.post(
         "/to-images",
         data={"file": pdf_file(1, "doc.pdf")},
@@ -183,9 +165,32 @@ def test_convert_content_disposition_header(client):
         headers={"Origin": "http://localhost:5173"},
     )
     assert response.status_code == 200
+    assert "image/png" in response.content_type
+    disposition = response.headers.get("Content-Disposition", "")
+    assert "attachment" in disposition
+    assert "page.png" in disposition
+    # Verify PNG magic bytes
+    assert response.data[:8] == b"\x89PNG\r\n\x1a\n"
+
+
+@requires_poppler
+def test_convert_multipage_returns_zip(client):
+    """POST /to-images with a multi-page PDF returns a ZIP."""
+    response = client.post(
+        "/to-images",
+        data={"file": pdf_file(3, "doc.pdf")},
+        content_type="multipart/form-data",
+        headers={"Origin": "http://localhost:5173"},
+    )
+    assert response.status_code == 200
+    assert "zip" in response.content_type
     disposition = response.headers.get("Content-Disposition", "")
     assert "attachment" in disposition
     assert "pages.zip" in disposition
+
+    with zipfile.ZipFile(io.BytesIO(response.data)) as zf:
+        names = set(zf.namelist())
+    assert names == {"page_1.png", "page_2.png", "page_3.png"}
 
 
 # ---------------------------------------------------------------------------

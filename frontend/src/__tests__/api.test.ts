@@ -95,7 +95,7 @@ describe('convertToImages', () => {
     vi.restoreAllMocks()
   })
 
-  it('returns a Blob when the response is application/zip', async () => {
+  it('returns { blob, type: "zip" } when the response is application/zip', async () => {
     const zipBlob = new Blob(['PK'], { type: 'application/zip' })
     vi.stubGlobal(
       'fetch',
@@ -105,7 +105,22 @@ describe('convertToImages', () => {
     const file = new File(['%PDF-1.4'], 'doc.pdf', { type: 'application/pdf' })
     const result = await convertToImages(file)
 
-    expect(result).toBeInstanceOf(Blob)
+    expect(result.blob).toBeInstanceOf(Blob)
+    expect(result.type).toBe('zip')
+  })
+
+  it('returns { blob, type: "png" } when the response is image/png', async () => {
+    const pngBlob = new Blob(['\x89PNG'], { type: 'image/png' })
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(makeResponse(true, 200, 'image/png', pngBlob))
+    )
+
+    const file = new File(['%PDF-1.4'], 'single.pdf', { type: 'application/pdf' })
+    const result = await convertToImages(file)
+
+    expect(result.blob).toBeInstanceOf(Blob)
+    expect(result.type).toBe('png')
   })
 
   it('throws with the server error message on a 400 response', async () => {

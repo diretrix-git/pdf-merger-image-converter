@@ -30,13 +30,16 @@ export async function mergePdfs(files: File[]): Promise<Blob> {
 }
 
 /**
- * Convert each page of a PDF to a PNG image, returned as a ZIP archive.
+ * Convert each page of a PDF to PNG images.
+ *
+ * - 1-page PDF  → backend returns image/png  → { blob, type: 'png' }
+ * - Multi-page  → backend returns application/zip → { blob, type: 'zip' }
  *
  * @param file - The PDF file to convert.
- * @returns A Blob containing the ZIP archive of PNG images.
+ * @returns Blob and the output type ('png' or 'zip').
  * @throws Error with a human-readable message on validation or server error.
  */
-export async function convertToImages(file: File): Promise<Blob> {
+export async function convertToImages(file: File): Promise<{ blob: Blob; type: 'png' | 'zip' }> {
   const formData = new FormData()
   formData.append('file', file)
 
@@ -45,7 +48,19 @@ export async function convertToImages(file: File): Promise<Blob> {
     body: formData,
   })
 
-  return handleResponse(response)
+  const contentType = response.headers.get('Content-Type') ?? ''
+
+  if (!response.ok) {
+    if (contentType.includes('application/json')) {
+      const body = await response.json() as { error?: string }
+      throw new Error(body.error ?? `Request failed with status ${response.status}`)
+    }
+    throw new Error(`Request failed with status ${response.status}`)
+  }
+
+  const blob = await response.blob()
+  const type = contentType.includes('image/png') ? 'png' : 'zip'
+  return { blob, type }
 }
 
 /**

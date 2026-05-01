@@ -92,6 +92,8 @@ export function DownloadModal({
                 <p className="text-sm text-gray-400">
                   {extension === 'zip'
                     ? 'Your pages will download as a ZIP containing one PNG per page.'
+                    : extension === 'png'
+                    ? 'Single-page PDF — downloads as a PNG image directly.'
                     : 'Choose a name before the download starts.'}
                 </p>
               </div>

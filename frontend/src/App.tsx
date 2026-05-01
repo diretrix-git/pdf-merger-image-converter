@@ -108,9 +108,9 @@ export default function App() {
   const handleConvert = async () => {
     setState((prev) => ({ ...prev, isLoading: true }))
     try {
-      const blob = await convertToImages(state.files[0].file)
-      // ZIP contains page_1.png … page_N.png — name it clearly
-      setDownloadModal({ open: true, blob, defaultName: 'pages', extension: 'zip' })
+      const { blob, type } = await convertToImages(state.files[0].file)
+      const defaultName = type === 'png' ? 'page' : 'pages'
+      setDownloadModal({ open: true, blob, defaultName, extension: type })
     } catch (err) {
       addToast({
         type: 'error',
