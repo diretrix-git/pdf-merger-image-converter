@@ -20,7 +20,7 @@ const faqs = [
   },
   {
     q: 'My PDF has a password. Can I still use it?',
-    a: 'Not directly. Password-protected PDFs can\'t be processed. You\'ll need to remove the password first — most PDF readers (like Adobe Acrobat or Preview on Mac) let you do this from the File menu.',
+    a: "Not directly. Password-protected PDFs can't be processed. You'll need to remove the password first — most PDF readers (like Adobe Acrobat or Preview on Mac) let you do this from the File menu.",
   },
   {
     q: 'Does it work on my phone?',
@@ -28,7 +28,7 @@ const faqs = [
   },
   {
     q: 'Why is my download a ZIP file instead of a PNG?',
-    a: 'When you convert a multi-page PDF, each page becomes a separate image. Since you can\'t put multiple images into a single PNG file, they\'re bundled into a ZIP for easy download. Just unzip it to get all your images.',
+    a: "When you convert a multi-page PDF, each page becomes a separate image. Since you can't put multiple images into a single PNG file, they're bundled into a ZIP for easy download. Just unzip it to get all your images.",
   },
 ]
 
@@ -43,88 +43,68 @@ export function FAQSection() {
     >
       <div className="max-w-2xl w-full">
 
-        {/* Header */}
+        {/* Header — single animation, no per-item whileInView */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: '-60px' }}
+          viewport={{ once: true, amount: 0.3 }}
           transition={{ duration: 0.5 }}
           className="mb-10 sm:mb-14 text-center sm:text-left"
         >
-          <p className="text-xs font-mono text-sky-500 uppercase tracking-widest mb-3">Help</p>
-          <h2 className="text-3xl sm:text-5xl font-bold text-white leading-tight">
-            Questions?
-          </h2>
-          <p className="mt-3 text-gray-400 text-sm sm:text-base">
+          <p className="text-xs font-mono text-sky-400 uppercase tracking-widest mb-3">Help</p>
+          <h2 className="text-3xl sm:text-5xl font-bold text-white leading-tight">Questions?</h2>
+          <p className="mt-3 text-white/60 text-sm sm:text-base">
             Everything you might want to know.
           </p>
         </motion.div>
 
-        {/* Accordion */}
-        <div className="flex flex-col gap-2">
+        {/* Accordion — clean dividers, no box borders */}
+        <div className="flex flex-col divide-y divide-white/[0.08]">
           {faqs.map((faq, i) => {
             const isOpen = open === i
             return (
-              <motion.div
-                key={i}
-                initial={{ opacity: 0, y: 10 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.3, delay: i * 0.04 }}
-                className={`rounded-xl border transition-all duration-200 overflow-hidden ${
-                  isOpen
-                    ? 'border-violet-700/50 bg-violet-950/20'
-                    : 'border-gray-800/60 bg-gray-900/30 hover:border-gray-700/60'
-                }`}
-              >
+              <div key={i}>
                 <button
+                  type="button"
                   onClick={() => setOpen(isOpen ? null : i)}
-                  className="w-full flex items-center justify-between px-5 py-4 text-left"
+                  className="w-full flex items-center justify-between py-5 text-left group"
                   aria-expanded={isOpen}
                 >
-                  <span className={`text-sm sm:text-base font-medium pr-6 transition-colors duration-200 ${
-                    isOpen ? 'text-white' : 'text-gray-200'
+                  <span className={`text-sm sm:text-base font-medium pr-6 transition-colors duration-150 ${
+                    isOpen ? 'text-white' : 'text-white/80 group-hover:text-white'
                   }`}>
                     {faq.q}
                   </span>
 
-                  {/* Animated +/× icon */}
-                  <motion.div
+                  {/* Rotating + icon — no box */}
+                  <motion.span
                     animate={{ rotate: isOpen ? 45 : 0 }}
-                    transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
-                    className={`shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-base font-light transition-colors duration-200 ${
-                      isOpen
-                        ? 'bg-violet-600/30 text-violet-300'
-                        : 'bg-gray-800 text-gray-400'
+                    transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+                    className={`shrink-0 text-xl leading-none font-light transition-colors duration-150 ${
+                      isOpen ? 'text-violet-400' : 'text-white/30 group-hover:text-white/60'
                     }`}
                   >
                     +
-                  </motion.div>
+                  </motion.span>
                 </button>
 
                 <AnimatePresence initial={false}>
                   {isOpen && (
                     <motion.div
-                      key="body"
+                      key="answer"
                       initial={{ height: 0, opacity: 0 }}
                       animate={{ height: 'auto', opacity: 1 }}
                       exit={{ height: 0, opacity: 0 }}
-                      transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+                      transition={{ duration: 0.26, ease: [0.22, 1, 0.36, 1] }}
                       className="overflow-hidden"
                     >
-                      <motion.p
-                        initial={{ y: -6 }}
-                        animate={{ y: 0 }}
-                        exit={{ y: -6 }}
-                        transition={{ duration: 0.22 }}
-                        className="px-5 pb-5 text-sm sm:text-base text-gray-300 leading-relaxed"
-                      >
+                      <p className="pb-5 text-sm sm:text-base text-white/60 leading-relaxed">
                         {faq.a}
-                      </motion.p>
+                      </p>
                     </motion.div>
                   )}
                 </AnimatePresence>
-              </motion.div>
+              </div>
             )
           })}
         </div>
