@@ -14,6 +14,7 @@ import { HowItWorksSection } from './components/HowItWorksSection'
 import { FeaturesSection } from './components/FeaturesSection'
 import { FAQSection } from './components/FAQSection'
 import { CTASection } from './components/CTASection'
+import { ProcessingSkeleton } from './components/ui/ProcessingSkeleton'
 import { mergePdfs, convertToImages } from './api'
 import { downloadBlob } from './downloadBlob'
 import type { AppState, FileEntry, Toast } from './types'
@@ -171,7 +172,7 @@ export default function App() {
       <section
         id="home"
         data-scroll-section
-        className="relative flex flex-col items-center justify-center min-h-screen px-6 pt-28 pb-16 overflow-hidden"
+        className="relative flex flex-col items-center justify-center min-h-screen px-4 sm:px-6 pt-32 sm:pt-36 pb-16 overflow-hidden"
       >
         {/* Parallax background */}
         <div
@@ -223,32 +224,39 @@ export default function App() {
             currentFileCount={state.files.length}
           />
 
-          {/* File list with count + storage */}
-          <AnimatePresence>
-            {state.files.length > 0 && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                exit={{ opacity: 0, height: 0 }}
-                transition={{ duration: 0.2 }}
-              >
-                <FileList
-                  files={state.files}
-                  onRemove={handleRemove}
-                  combinedSizeBytes={combinedSizeBytes}
-                />
-              </motion.div>
+          {/* File list / skeleton */}
+          <AnimatePresence mode="wait">
+            {state.isLoading ? (
+              <ProcessingSkeleton key="skeleton" />
+            ) : (
+              state.files.length > 0 && (
+                <motion.div
+                  key="filelist"
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <FileList
+                    files={state.files}
+                    onRemove={handleRemove}
+                    combinedSizeBytes={combinedSizeBytes}
+                  />
+                </motion.div>
+              )
             )}
           </AnimatePresence>
 
-          {/* Action buttons */}
-          <ActionButtons
-            fileCount={state.files.length}
-            combinedSizeBytes={combinedSizeBytes}
-            isLoading={state.isLoading}
-            onMerge={handleMerge}
-            onConvert={handleConvert}
-          />
+          {/* Action buttons — hidden while loading (skeleton shows instead) */}
+          {!state.isLoading && (
+            <ActionButtons
+              fileCount={state.files.length}
+              combinedSizeBytes={combinedSizeBytes}
+              isLoading={state.isLoading}
+              onMerge={handleMerge}
+              onConvert={handleConvert}
+            />
+          )}
         </motion.div>
 
         {/* Scroll cue */}

@@ -109,8 +109,8 @@ export function Navbar() {
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.45, ease: 'easeOut' }}
-        className="fixed top-0 left-0 right-0 z-50 sm:hidden
-                   flex items-center justify-between px-5 py-4
+        className="fixed top-4 left-0 right-0 z-50 sm:hidden
+                   flex items-center justify-between px-5 py-3.5
                    bg-gray-950/90 backdrop-blur-md border-b border-gray-800/60"
       >
         <a
@@ -158,7 +158,7 @@ export function Navbar() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -8 }}
             transition={{ duration: 0.2 }}
-            className="fixed top-[61px] left-0 right-0 z-40 sm:hidden
+            className="fixed top-[73px] left-0 right-0 z-40 sm:hidden
                        bg-gray-950/95 backdrop-blur-md border-b border-gray-800/60 py-2"
           >
             {navLinks.map((link) => (

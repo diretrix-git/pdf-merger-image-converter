@@ -1,50 +1,42 @@
 import { useState } from 'react'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 
 const steps = [
   {
     step: '01',
-    title: 'Upload',
-    label: 'Drop your files',
-    desc: 'Drag & drop up to 8 PDF files into the upload zone, or click to browse. Files are validated client-side before anything is sent.',
-    detail: 'Supports up to 50 MB per file. MIME type and magic bytes are checked — not just the extension.',
+    emoji: '📂',
+    title: 'Pick your files',
+    short: 'Drag, drop, done.',
+    desc: 'Drag your PDFs straight onto the page, or tap to browse. You can add up to 8 files at once.',
     color: 'from-violet-500 to-violet-700',
-    bg: 'bg-violet-950/40',
+    bg: 'bg-violet-950/30',
     border: 'border-violet-700/40',
-    accent: 'text-violet-400',
+    pill: 'bg-violet-900/60 text-violet-300',
+    glow: 'rgba(139,92,246,0.15)',
   },
   {
     step: '02',
-    title: 'Choose',
-    label: 'Pick your action',
-    desc: 'Hit Merge to combine files in the order you arranged them, or Convert to extract every page as a PNG image.',
-    detail: 'Merge strips embedded JavaScript and metadata. Convert returns a raw PNG for single-page PDFs, a ZIP for multi-page.',
+    emoji: '⚡',
+    title: 'Choose what to do',
+    short: 'Merge or convert.',
+    desc: 'Hit "Merge PDFs" to combine them into one file, or "Convert to PNGs" to turn each page into an image.',
     color: 'from-indigo-500 to-indigo-700',
-    bg: 'bg-indigo-950/40',
+    bg: 'bg-indigo-950/30',
     border: 'border-indigo-700/40',
-    accent: 'text-indigo-400',
+    pill: 'bg-indigo-900/60 text-indigo-300',
+    glow: 'rgba(99,102,241,0.15)',
   },
   {
     step: '03',
-    title: 'Process',
-    label: 'In-memory only',
-    desc: 'Your files are processed entirely in memory on the server. Nothing is written to disk at any point during processing.',
-    detail: 'A 60-second timeout protects against complex PDFs. PDF bombs are caught before full processing begins.',
-    color: 'from-sky-500 to-sky-700',
-    bg: 'bg-sky-950/40',
-    border: 'border-sky-700/40',
-    accent: 'text-sky-400',
-  },
-  {
-    step: '04',
-    title: 'Download',
-    label: 'Name & save',
-    desc: 'Name your output file before downloading. The file is sent directly to your browser — no storage, no links, no expiry.',
-    detail: 'Files are gone the moment the HTTP response is sent. There is nothing to delete.',
+    emoji: '⬇️',
+    title: 'Download your file',
+    short: 'Name it, save it.',
+    desc: 'Give your file a name and download it instantly. That\'s it — nothing is saved anywhere.',
     color: 'from-emerald-500 to-emerald-700',
-    bg: 'bg-emerald-950/40',
+    bg: 'bg-emerald-950/30',
     border: 'border-emerald-700/40',
-    accent: 'text-emerald-400',
+    pill: 'bg-emerald-900/60 text-emerald-300',
+    glow: 'rgba(16,185,129,0.15)',
   },
 ]
 
@@ -55,106 +47,99 @@ export function HowItWorksSection() {
     <section
       id="how-it-works"
       data-scroll-section
-      className="min-h-screen py-24 px-6 flex flex-col items-center justify-center"
+      className="py-20 sm:py-28 px-4 sm:px-6 flex flex-col items-center"
     >
-      <div className="max-w-5xl w-full">
+      <div className="max-w-4xl w-full">
+
         {/* Header */}
         <motion.div
-          initial={{ opacity: 0, y: 24 }}
+          initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: '-60px' }}
           transition={{ duration: 0.5 }}
-          className="mb-14"
+          className="mb-10 sm:mb-14 text-center sm:text-left"
         >
-          <p className="text-xs font-mono text-violet-500 uppercase tracking-widest mb-3">Process</p>
-          <h2 className="text-4xl sm:text-5xl font-bold text-gray-100 leading-tight">
-            How it works
+          <p className="text-xs font-mono text-violet-500 uppercase tracking-widest mb-3">Simple</p>
+          <h2 className="text-3xl sm:text-5xl font-bold text-white leading-tight">
+            Three steps.<br className="hidden sm:block" /> That's all.
           </h2>
-          <p className="mt-3 text-gray-500 text-base max-w-md">
-            Four steps. No account. No waiting.
-          </p>
         </motion.div>
 
-        {/* Accordion panels — horizontal on desktop, vertical on mobile */}
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: '-40px' }}
-          transition={{ duration: 0.5, delay: 0.1 }}
-          className="flex flex-col sm:flex-row gap-2 h-auto sm:h-80"
-        >
-          {steps.map((step, i) => (
-            <motion.div
-              key={step.step}
+        {/* Step selector tabs */}
+        <div className="flex gap-2 mb-6 overflow-x-auto pb-1 scrollbar-none">
+          {steps.map((s, i) => (
+            <button
+              key={i}
               onClick={() => setActive(i)}
-              layout
-              animate={{
-                flex: active === i ? 4 : 1,
-              }}
-              transition={{ duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] }}
-              className={`
-                relative overflow-hidden rounded-2xl border cursor-pointer
-                ${step.bg} ${step.border}
-                flex flex-col justify-end p-6
-                min-h-[80px] sm:min-h-0
-              `}
-              style={{ minWidth: 0 }}
+              className={`shrink-0 flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 ${
+                active === i
+                  ? `${s.pill} border border-current/20`
+                  : 'text-gray-500 hover:text-gray-300 bg-gray-900/40 border border-gray-800'
+              }`}
             >
-              {/* Step number — always visible */}
-              <div className="flex items-center gap-3 mb-3">
-                <span className={`text-xs font-mono font-bold ${step.accent} shrink-0`}>
-                  {step.step}
-                </span>
-                {/* Title — rotated when collapsed on desktop */}
-                <motion.span
-                  animate={{
-                    opacity: active === i ? 0 : 1,
-                    x: active === i ? -8 : 0,
-                  }}
-                  transition={{ duration: 0.25 }}
-                  className="hidden sm:block text-sm font-semibold text-gray-300 whitespace-nowrap"
-                >
-                  {step.title}
-                </motion.span>
-              </div>
-
-              {/* Expanded content */}
-              <motion.div
-                animate={{
-                  opacity: active === i ? 1 : 0,
-                  y: active === i ? 0 : 12,
-                }}
-                transition={{ duration: 0.3, delay: active === i ? 0.15 : 0 }}
-                className="flex flex-col gap-2"
-              >
-                <h3 className="text-xl font-bold text-gray-100">{step.label}</h3>
-                <p className="text-sm text-gray-300 leading-relaxed max-w-xs">{step.desc}</p>
-                <p className={`text-xs ${step.accent} leading-relaxed max-w-xs mt-1`}>
-                  {step.detail}
-                </p>
-              </motion.div>
-
-              {/* Gradient accent line at top */}
-              <div
-                className={`absolute top-0 left-0 right-0 h-px bg-gradient-to-r ${step.color} opacity-60`}
-              />
-            </motion.div>
+              <span>{s.emoji}</span>
+              <span>{s.title}</span>
+            </button>
           ))}
-        </motion.div>
+        </div>
 
-        {/* Step dots indicator */}
-        <div className="flex gap-2 mt-6 justify-center sm:justify-start">
+        {/* Active step card */}
+        <div className="relative overflow-hidden rounded-2xl sm:rounded-3xl min-h-[220px] sm:min-h-[260px]">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={active}
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -16 }}
+              transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+              className={`relative p-7 sm:p-10 rounded-2xl sm:rounded-3xl border ${steps[active].bg} ${steps[active].border} overflow-hidden`}
+            >
+              {/* Glow */}
+              <div
+                className="absolute -top-16 -right-16 w-64 h-64 rounded-full blur-3xl pointer-events-none"
+                style={{ background: steps[active].glow }}
+              />
+
+              {/* Top line */}
+              <div className={`absolute top-0 left-0 right-0 h-px bg-gradient-to-r ${steps[active].color} opacity-50`} />
+
+              <div className="relative z-10 flex flex-col sm:flex-row sm:items-center gap-6">
+                {/* Big emoji */}
+                <div className="text-5xl sm:text-6xl shrink-0">{steps[active].emoji}</div>
+
+                <div>
+                  <div className="flex items-center gap-3 mb-3">
+                    <span className="text-xs font-mono text-gray-500">{steps[active].step}</span>
+                    <span className={`text-xs font-medium px-2.5 py-0.5 rounded-full ${steps[active].pill}`}>
+                      {steps[active].short}
+                    </span>
+                  </div>
+                  <h3 className="text-xl sm:text-2xl font-bold text-white mb-2">
+                    {steps[active].title}
+                  </h3>
+                  <p className="text-gray-300 text-sm sm:text-base leading-relaxed max-w-lg">
+                    {steps[active].desc}
+                  </p>
+                </div>
+              </div>
+            </motion.div>
+          </AnimatePresence>
+        </div>
+
+        {/* Dot indicators */}
+        <div className="flex gap-2 mt-5 justify-center">
           {steps.map((_, i) => (
             <button
               key={i}
               onClick={() => setActive(i)}
               aria-label={`Step ${i + 1}`}
-              className={`h-1 rounded-full transition-all duration-300 ${
-                active === i ? 'w-6 bg-violet-500' : 'w-2 bg-gray-700'
+              className={`h-1.5 rounded-full transition-all duration-300 ${
+                active === i ? 'w-8 bg-violet-500' : 'w-2 bg-gray-700 hover:bg-gray-600'
               }`}
             />
           ))}
         </div>
+
       </div>
     </section>
   )

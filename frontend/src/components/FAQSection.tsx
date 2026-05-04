@@ -3,32 +3,32 @@ import { motion, AnimatePresence } from 'framer-motion'
 
 const faqs = [
   {
-    q: 'Are my files stored anywhere?',
-    a: 'No. All processing happens in-memory on the server. Files are never written to disk and are gone the moment the HTTP response is sent. There is nothing to delete.',
+    q: 'Is this free to use?',
+    a: 'Yes, completely free. No account, no subscription, no hidden fees. Just open the app and start using it.',
   },
   {
-    q: 'Why does image conversion need Poppler?',
-    a: 'pdf2image is a Python wrapper around Poppler\'s pdftoppm binary, which handles the actual PDF rendering. Without Poppler installed and in your system PATH, the /to-images endpoint will return an error. See the README for installation instructions.',
+    q: 'Are my files safe? Will anyone see them?',
+    a: 'Your files are processed privately and deleted immediately after your download starts. Nothing is saved to any server or database. Nobody can access your files.',
   },
   {
-    q: 'What happens to embedded JavaScript in PDFs?',
-    a: 'When merging, MergeSnap recursively walks the entire PDF object tree and removes /JavaScript, /AA, /OpenAction, /Launch, /SubmitForm, /ImportData, /RichMedia, and /EmbeddedFiles keys at every nesting level — not just the top-level catalog.',
+    q: 'How many PDFs can I merge at once?',
+    a: 'You can merge up to 8 PDF files at a time. Each file can be up to 50 MB. If you need to merge more, just do it in batches — merge the first set, then merge the result with the next batch.',
   },
   {
-    q: 'What are the file limits?',
-    a: 'Each file can be up to 50 MB. The combined request is also capped at 50 MB. Merge accepts up to 8 files. Convert accepts 1 file with a maximum of 20 pages. Rate limiting is 10 requests/minute and 50 requests/day per IP.',
+    q: 'What does "Convert to PNGs" actually do?',
+    a: 'It turns each page of your PDF into a separate image file. If your PDF has 1 page, you get a single PNG image. If it has multiple pages, you get a ZIP file containing one image per page.',
   },
   {
-    q: 'Can I upload a password-protected PDF?',
-    a: 'No. Password-protected PDFs are detected and rejected with a clear error message before any processing begins. Remove the password first using your PDF reader, then upload.',
+    q: 'My PDF has a password. Can I still use it?',
+    a: 'Not directly. Password-protected PDFs can\'t be processed. You\'ll need to remove the password first — most PDF readers (like Adobe Acrobat or Preview on Mac) let you do this from the File menu.',
   },
   {
-    q: 'Single page vs multi-page conversion — what\'s the difference?',
-    a: 'If your PDF has exactly 1 page, the server returns a raw PNG file directly. If it has 2 or more pages, you get a ZIP archive containing page_1.png, page_2.png, and so on. The download modal tells you which format to expect.',
+    q: 'Does it work on my phone?',
+    a: 'Yes. The app works on phones and tablets. You can upload files from your device, merge or convert them, and download the result — all from your mobile browser.',
   },
   {
-    q: 'Can I use this on mobile?',
-    a: 'Yes. The interface is fully responsive. Locomotive Scroll (smooth scrolling) is automatically disabled on touch devices to avoid conflicts with native scroll, and the custom cursor is hidden on touch screens.',
+    q: 'Why is my download a ZIP file instead of a PNG?',
+    a: 'When you convert a multi-page PDF, each page becomes a separate image. Since you can\'t put multiple images into a single PNG file, they\'re bundled into a ZIP for easy download. Just unzip it to get all your images.',
   },
 ]
 
@@ -39,72 +39,96 @@ export function FAQSection() {
     <section
       id="faq"
       data-scroll-section
-      className="py-24 px-6 flex flex-col items-center"
+      className="py-20 sm:py-28 px-4 sm:px-6 flex flex-col items-center"
     >
-      <div className="max-w-3xl w-full">
+      <div className="max-w-2xl w-full">
+
         {/* Header */}
         <motion.div
-          initial={{ opacity: 0, y: 24 }}
+          initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: '-60px' }}
           transition={{ duration: 0.5 }}
-          className="mb-14"
+          className="mb-10 sm:mb-14 text-center sm:text-left"
         >
-          <p className="text-xs font-mono text-sky-500 uppercase tracking-widest mb-3">Questions</p>
-          <h2 className="text-4xl sm:text-5xl font-bold text-gray-100 leading-tight">FAQ</h2>
-          <p className="mt-3 text-gray-500 text-base">Common questions, straight answers.</p>
+          <p className="text-xs font-mono text-sky-500 uppercase tracking-widest mb-3">Help</p>
+          <h2 className="text-3xl sm:text-5xl font-bold text-white leading-tight">
+            Questions?
+          </h2>
+          <p className="mt-3 text-gray-400 text-sm sm:text-base">
+            Everything you might want to know.
+          </p>
         </motion.div>
 
         {/* Accordion */}
-        <div className="flex flex-col divide-y divide-gray-800/60">
-          {faqs.map((faq, i) => (
-            <motion.div
-              key={i}
-              initial={{ opacity: 0, y: 12 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.35, delay: i * 0.05 }}
-            >
-              <button
-                onClick={() => setOpen(open === i ? null : i)}
-                className="w-full flex items-center justify-between py-5 text-left group"
-                aria-expanded={open === i}
+        <div className="flex flex-col gap-2">
+          {faqs.map((faq, i) => {
+            const isOpen = open === i
+            return (
+              <motion.div
+                key={i}
+                initial={{ opacity: 0, y: 10 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.3, delay: i * 0.04 }}
+                className={`rounded-xl border transition-all duration-200 overflow-hidden ${
+                  isOpen
+                    ? 'border-violet-700/50 bg-violet-950/20'
+                    : 'border-gray-800/60 bg-gray-900/30 hover:border-gray-700/60'
+                }`}
               >
-                <span className={`text-sm font-medium transition-colors duration-200 pr-8 ${
-                  open === i ? 'text-gray-100' : 'text-gray-300 group-hover:text-gray-100'
-                }`}>
-                  {faq.q}
-                </span>
-                <motion.span
-                  animate={{ rotate: open === i ? 45 : 0 }}
-                  transition={{ duration: 0.2 }}
-                  className={`shrink-0 text-lg leading-none transition-colors duration-200 ${
-                    open === i ? 'text-violet-400' : 'text-gray-600 group-hover:text-gray-400'
-                  }`}
+                <button
+                  onClick={() => setOpen(isOpen ? null : i)}
+                  className="w-full flex items-center justify-between px-5 py-4 text-left"
+                  aria-expanded={isOpen}
                 >
-                  +
-                </motion.span>
-              </button>
+                  <span className={`text-sm sm:text-base font-medium pr-6 transition-colors duration-200 ${
+                    isOpen ? 'text-white' : 'text-gray-200'
+                  }`}>
+                    {faq.q}
+                  </span>
 
-              <AnimatePresence initial={false}>
-                {open === i && (
+                  {/* Animated +/× icon */}
                   <motion.div
-                    key="answer"
-                    initial={{ height: 0, opacity: 0 }}
-                    animate={{ height: 'auto', opacity: 1 }}
-                    exit={{ height: 0, opacity: 0 }}
-                    transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
-                    className="overflow-hidden"
+                    animate={{ rotate: isOpen ? 45 : 0 }}
+                    transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+                    className={`shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-base font-light transition-colors duration-200 ${
+                      isOpen
+                        ? 'bg-violet-600/30 text-violet-300'
+                        : 'bg-gray-800 text-gray-400'
+                    }`}
                   >
-                    <p className="pb-5 text-sm text-gray-400 leading-relaxed max-w-2xl">
-                      {faq.a}
-                    </p>
+                    +
                   </motion.div>
-                )}
-              </AnimatePresence>
-            </motion.div>
-          ))}
+                </button>
+
+                <AnimatePresence initial={false}>
+                  {isOpen && (
+                    <motion.div
+                      key="body"
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: 'auto', opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+                      className="overflow-hidden"
+                    >
+                      <motion.p
+                        initial={{ y: -6 }}
+                        animate={{ y: 0 }}
+                        exit={{ y: -6 }}
+                        transition={{ duration: 0.22 }}
+                        className="px-5 pb-5 text-sm sm:text-base text-gray-300 leading-relaxed"
+                      >
+                        {faq.a}
+                      </motion.p>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </motion.div>
+            )
+          })}
         </div>
+
       </div>
     </section>
   )
