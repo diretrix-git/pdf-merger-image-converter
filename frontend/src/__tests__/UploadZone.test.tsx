@@ -7,7 +7,7 @@ import type { FileEntry, Toast } from '../types'
 // Helpers
 // ---------------------------------------------------------------------------
 
-function makePdfFile(name = 'test.pdf', sizeBytes = 1024): File {
+function makePdfFile(name = 'test.pdf'): File {
   const content = '%PDF-1.4 test content'
   return new File([content], name, { type: 'application/pdf' })
 }
@@ -17,8 +17,8 @@ function makeFile(name: string, type: string, sizeBytes = 1024): File {
 }
 
 function renderUploadZone(
-  onFilesAdded = vi.fn<[FileEntry[]], void>(),
-  onToast = vi.fn<[Omit<Toast, 'id'>], void>(),
+  onFilesAdded = vi.fn<(entries: FileEntry[]) => void>(),
+  onToast = vi.fn<(toast: Omit<Toast, 'id'>) => void>(),
   currentFileCount = 0
 ) {
   render(<UploadZone onFilesAdded={onFilesAdded} onToast={onToast} currentFileCount={currentFileCount} />)
