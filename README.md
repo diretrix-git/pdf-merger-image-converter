@@ -2,10 +2,17 @@
 
 A personal-use web app for PDF processing — no sign-up, no storage, nothing sent to the cloud.
 
-- **Merge PDFs** — combine up to 8 PDFs into one, in order, with JavaScript and metadata stripped
-- **Convert to PNGs** — convert a PDF's pages to PNG images (single page → PNG file, multi-page → ZIP)
-
 All processing happens in-memory on your local machine. Files are never written to disk and are gone the moment the response is sent.
+
+---
+
+## Features
+
+- **Merge PDFs** — combine up to 8 PDFs into one file, in the exact order you choose
+- **Drag to reorder** — drag files up or down before merging (works on both desktop and mobile)
+- **Convert to PNGs** — convert a PDF's pages to PNG images (single page → PNG, multi-page → ZIP)
+- **Custom filenames** — name your output file before downloading
+- **Privacy first** — all processing is in-memory, files are deleted immediately after download
 
 ---
 
@@ -114,8 +121,6 @@ Tests that require Poppler are automatically skipped when it's not installed.
 ---
 
 ## Deployment
-
-See `PROJECT.md` for full deployment instructions (Vercel for frontend, Render for backend).
 
 Quick summary:
 1. Backend → Render Web Service, root dir `pdf-app/backend`, start command `gunicorn app:app`, build script installs `poppler-utils`
