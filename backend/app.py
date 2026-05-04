@@ -19,8 +19,11 @@ from config import (
 
 app = Flask(__name__)
 
-# Restrict CORS to the Vite dev server only.
-CORS(app, origins=["http://localhost:5173"])
+# Restrict CORS to the Vite dev server and production frontend.
+CORS(app, origins=[
+    "http://localhost:5173",
+    "https://pdf-merger-image-converter.vercel.app",
+])
 
 # Flask will reject requests whose body exceeds this limit before they hit a route.
 app.config["MAX_CONTENT_LENGTH"] = MAX_COMBINED_SIZE_BYTES
