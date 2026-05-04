@@ -23,7 +23,7 @@ function makeEntry(overrides: Partial<FileEntry> = {}): FileEntry {
 
 describe('FileList', () => {
   it('renders nothing when the file list is empty', () => {
-    const { container } = render(<FileList files={[]} onRemove={vi.fn()} />)
+    const { container } = render(<FileList files={[]} onRemove={vi.fn()} onReorder={vi.fn()} />)
     expect(container.firstChild).toBeNull()
   })
 
@@ -32,7 +32,7 @@ describe('FileList', () => {
       makeEntry({ name: 'document-a.pdf' }),
       makeEntry({ name: 'document-b.pdf' }),
     ]
-    render(<FileList files={files} onRemove={vi.fn()} />)
+    render(<FileList files={files} onRemove={vi.fn()} onReorder={vi.fn()} />)
 
     expect(screen.getByText('document-a.pdf')).toBeInTheDocument()
     expect(screen.getByText('document-b.pdf')).toBeInTheDocument()
@@ -40,10 +40,10 @@ describe('FileList', () => {
 
   it('renders each file with a human-readable size', () => {
     const files = [
-      makeEntry({ name: 'small.pdf', sizeBytes: 512 * 1024 }), // 512 KB
-      makeEntry({ name: 'large.pdf', sizeBytes: 2.5 * 1024 * 1024 }), // 2.5 MB
+      makeEntry({ name: 'small.pdf', sizeBytes: 512 * 1024 }),
+      makeEntry({ name: 'large.pdf', sizeBytes: 2.5 * 1024 * 1024 }),
     ]
-    render(<FileList files={files} onRemove={vi.fn()} />)
+    render(<FileList files={files} onRemove={vi.fn()} onReorder={vi.fn()} />)
 
     expect(screen.getByText('512 KB')).toBeInTheDocument()
     expect(screen.getByText('2.5 MB')).toBeInTheDocument()
@@ -52,7 +52,7 @@ describe('FileList', () => {
   it('calls onRemove with the correct id when the remove button is clicked', () => {
     const onRemove = vi.fn()
     const entry = makeEntry({ name: 'to-remove.pdf', id: 'abc-123' })
-    render(<FileList files={[entry]} onRemove={onRemove} />)
+    render(<FileList files={[entry]} onRemove={onRemove} onReorder={vi.fn()} />)
 
     const removeButton = screen.getByRole('button', { name: /remove to-remove\.pdf/i })
     fireEvent.click(removeButton)
@@ -63,13 +63,13 @@ describe('FileList', () => {
 
   it('shows the correct file count label', () => {
     const files = [makeEntry(), makeEntry(), makeEntry()]
-    render(<FileList files={files} onRemove={vi.fn()} combinedSizeBytes={3 * 512 * 1024} />)
+    render(<FileList files={files} onRemove={vi.fn()} onReorder={vi.fn()} combinedSizeBytes={3 * 512 * 1024} />)
 
     expect(screen.getByText(/3 files/i)).toBeInTheDocument()
   })
 
   it('shows singular label for a single file', () => {
-    render(<FileList files={[makeEntry()]} onRemove={vi.fn()} combinedSizeBytes={512 * 1024} />)
+    render(<FileList files={[makeEntry()]} onRemove={vi.fn()} onReorder={vi.fn()} combinedSizeBytes={512 * 1024} />)
     expect(screen.getByText(/1 file/i)).toBeInTheDocument()
   })
 
@@ -78,7 +78,7 @@ describe('FileList', () => {
       makeEntry({ name: 'a.pdf' }),
       makeEntry({ name: 'b.pdf' }),
     ]
-    render(<FileList files={files} onRemove={vi.fn()} />)
+    render(<FileList files={files} onRemove={vi.fn()} onReorder={vi.fn()} />)
 
     const removeButtons = screen.getAllByRole('button', { name: /remove/i })
     expect(removeButtons).toHaveLength(2)

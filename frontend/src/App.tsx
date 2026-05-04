@@ -15,6 +15,7 @@ import { FeaturesSection } from './components/FeaturesSection'
 import { FAQSection } from './components/FAQSection'
 import { CTASection } from './components/CTASection'
 import { ProcessingSkeleton } from './components/ui/ProcessingSkeleton'
+import { PreLoader } from './components/ui/PreLoader'
 import { mergePdfs, convertToImages } from './api'
 import { downloadBlob } from './downloadBlob'
 import type { AppState, FileEntry, Toast } from './types'
@@ -91,6 +92,10 @@ export default function App() {
     setState((prev) => ({ ...prev, files: prev.files.filter((f) => f.id !== id) }))
   }, [])
 
+  const handleReorder = useCallback((reordered: FileEntry[]) => {
+    setState((prev) => ({ ...prev, files: reordered }))
+  }, [])
+
   // ---------------------------------------------------------------------------
   // API actions
   // ---------------------------------------------------------------------------
@@ -151,20 +156,22 @@ export default function App() {
   // ---------------------------------------------------------------------------
 
   return (
-    <div
-      ref={scrollContainerRef}
-      data-scroll-container
-      className="min-h-screen bg-gray-950 text-gray-100 font-sans"
-    >
-      {/* Custom cursor — dot + spring follower */}
-      <CustomCursor />
+    <>
+      {/* Pre-loader — sits on top, slides away when done. Page renders immediately underneath. */}
+      <PreLoader onDone={() => {}} />
 
-      {/* Hide default cursor on desktop only */}
-      <style>{`@media (hover: hover) and (pointer: fine) { * { cursor: none !important; } }`}</style>
-      {/* ------------------------------------------------------------------ */}
-      {/* Navbar                                                               */}
-      {/* ------------------------------------------------------------------ */}
-      <Navbar />
+      {/* Main app — always rendered, visible once preloader exits */}
+      <div
+        ref={scrollContainerRef}
+        data-scroll-container
+        className="min-h-screen text-white font-sans"
+        style={{ background: '#0d0d18' }}
+      >
+        {/* Custom cursor — desktop only */}
+        <CustomCursor />
+        <style>{`@media (hover: hover) and (pointer: fine) { * { cursor: none !important; } }`}</style>
+
+        <Navbar />
 
       {/* ------------------------------------------------------------------ */}
       {/* Hero + Tool section (combined)                                       */}
@@ -172,7 +179,7 @@ export default function App() {
       <section
         id="home"
         data-scroll-section
-        className="relative flex flex-col items-center justify-center min-h-screen px-4 sm:px-6 pt-32 sm:pt-36 pb-16 overflow-hidden"
+        className="relative flex flex-col items-center justify-center min-h-screen px-4 sm:px-6 pt-32 sm:pt-40 pb-16 overflow-hidden"
       >
         {/* Parallax background */}
         <div
@@ -197,13 +204,13 @@ export default function App() {
             <span className="bg-gradient-to-r from-violet-300 to-indigo-300 bg-clip-text text-transparent">
               Merge
             </span>
-            <span className="text-gray-200 font-light">Snap</span>
+            <span className="text-white/60 font-light">Snap</span>
           </h1>
-          <p className="text-lg text-gray-400 leading-relaxed">
+          <p className="text-lg text-white/70 leading-relaxed">
             Merge multiple PDFs into one, or convert any PDF's pages into
             PNG images — processed in-memory, nothing stored.
           </p>
-          <div className="mt-4 flex items-center justify-center gap-2 text-xs text-gray-500">
+          <div className="mt-4 flex items-center justify-center gap-2 text-xs text-white/40">
             <span>🔒</span>
             <span>Files are automatically deleted after processing and never stored permanently.</span>
           </div>
@@ -240,6 +247,7 @@ export default function App() {
                   <FileList
                     files={state.files}
                     onRemove={handleRemove}
+                    onReorder={handleReorder}
                     combinedSizeBytes={combinedSizeBytes}
                   />
                 </motion.div>
@@ -295,18 +303,18 @@ export default function App() {
       {/* ------------------------------------------------------------------ */}
       <footer
         data-scroll-section
-        className="py-10 px-6 border-t border-gray-800/60"
+        className="py-10 px-6 border-t border-white/[0.06]"
       >
         <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
           <span className="text-sm font-black tracking-tighter">
             <span className="bg-gradient-to-r from-violet-400 to-indigo-400 bg-clip-text text-transparent">Merge</span>
-            <span className="text-gray-500 font-light">Snap</span>
+            <span className="text-white/50 font-light">Snap</span>
           </span>
-          <p className="text-xs text-gray-600">Runs locally · stores nothing · open source</p>
-          <div className="flex gap-4 text-xs text-gray-600">
-            <a href="#home" className="hover:text-gray-400 transition-colors">Home</a>
-            <a href="#how-it-works" className="hover:text-gray-400 transition-colors">How it works</a>
-            <a href="#faq" className="hover:text-gray-400 transition-colors">FAQ</a>
+          <p className="text-xs text-white/50">Runs locally · stores nothing · open source</p>
+          <div className="flex gap-4 text-xs text-white/50">
+            <a href="#home" className="hover:text-white transition-colors">Home</a>
+            <a href="#how-it-works" className="hover:text-white transition-colors">How it works</a>
+            <a href="#faq" className="hover:text-white transition-colors">FAQ</a>
           </div>
         </div>
       </footer>
@@ -326,6 +334,7 @@ export default function App() {
       {/* Toast notifications                                                  */}
       {/* ------------------------------------------------------------------ */}
       <ToastContainer toasts={state.toasts} onDismiss={dismissToast} />
-    </div>
+      </div>
+    </>
   )
 }
