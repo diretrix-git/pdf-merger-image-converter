@@ -5,6 +5,7 @@ const navLinks = [
   { label: 'Home', href: '#home' },
   { label: 'How it works', href: '#how-it-works' },
   { label: 'Features', href: '#features' },
+  { label: 'FAQ', href: '#faq' },
 ]
 
 /**
@@ -50,7 +51,7 @@ export function Navbar() {
         initial={{ opacity: 0, y: -24 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-        className="fixed top-6 left-0 right-0 z-50 hidden sm:flex justify-center px-6"
+        className="fixed top-10 left-0 right-0 z-50 hidden sm:flex justify-center px-6"
         style={{ pointerEvents: 'none' }}
       >
         <motion.nav

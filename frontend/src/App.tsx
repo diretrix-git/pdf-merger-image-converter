@@ -10,6 +10,10 @@ import { ToastContainer } from './components/ToastContainer'
 import { DownloadModal } from './components/DownloadModal'
 import { Navbar } from './components/Navbar'
 import { CustomCursor } from './components/CustomCursor'
+import { HowItWorksSection } from './components/HowItWorksSection'
+import { FeaturesSection } from './components/FeaturesSection'
+import { FAQSection } from './components/FAQSection'
+import { CTASection } from './components/CTASection'
 import { mergePdfs, convertToImages } from './api'
 import { downloadBlob } from './downloadBlob'
 import type { AppState, FileEntry, Toast } from './types'
@@ -259,138 +263,44 @@ export default function App() {
       </section>
 
       {/* ------------------------------------------------------------------ */}
-      {/* How it works section                                                 */}
+      {/* How it works — horizontal accordion panels                          */}
       {/* ------------------------------------------------------------------ */}
-      <section
-        id="how-it-works"
-        data-scroll-section
-        className="min-h-screen py-24 px-6 flex flex-col items-center justify-center"
-      >
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: '-80px' }}
-          transition={{ duration: 0.5 }}
-          className="max-w-3xl w-full"
-        >
-          <h2 className="text-3xl font-bold text-center mb-2 text-gray-100">How it works</h2>
-          <p className="text-center text-gray-500 mb-12 text-sm">Three steps, no sign-up required.</p>
-
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-            {[
-              {
-                step: '01',
-                icon: '📂',
-                title: 'Upload',
-                desc: 'Drag & drop your PDF files into the upload zone, or click to browse.',
-              },
-              {
-                step: '02',
-                icon: '⚙️',
-                title: 'Process',
-                desc: 'Choose Merge to combine files in order, or Convert to extract pages as PNGs.',
-              },
-              {
-                step: '03',
-                icon: '⬇️',
-                title: 'Download',
-                desc: 'Name your file and download it instantly. Nothing is stored on any server.',
-              },
-            ].map((item, i) => (
-              <motion.div
-                key={item.step}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.4, delay: i * 0.1 }}
-                className="flex flex-col items-center text-center p-6 rounded-2xl bg-gray-900/50 border border-gray-800"
-              >
-                <span className="text-xs font-mono text-violet-500 mb-3">{item.step}</span>
-                <span className="text-3xl mb-3" aria-hidden="true">{item.icon}</span>
-                <h3 className="font-semibold text-gray-100 mb-2">{item.title}</h3>
-                <p className="text-sm text-gray-400 leading-relaxed">{item.desc}</p>
-              </motion.div>
-            ))}
-          </div>
-        </motion.div>
-      </section>
+      <HowItWorksSection />
 
       {/* ------------------------------------------------------------------ */}
-      {/* Features section                                                     */}
+      {/* Features — bento grid                                               */}
       {/* ------------------------------------------------------------------ */}
-      <section
-        id="features"
-        data-scroll-section
-        className="min-h-screen py-24 px-6 flex flex-col items-center justify-center bg-gray-900/30"
-      >
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: '-80px' }}
-          transition={{ duration: 0.5 }}
-          className="max-w-4xl w-full"
-        >
-          <h2 className="text-3xl font-bold text-center mb-2 text-gray-100">Features</h2>
-          <p className="text-center text-gray-500 mb-12 text-sm">Everything you need, nothing you don't.</p>
+      <FeaturesSection />
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            {[
-              {
-                icon: '🔗',
-                title: 'Merge PDFs',
-                desc: 'Combine any number of PDFs into a single file, preserving page order.',
-              },
-              {
-                icon: '🖼️',
-                title: 'Convert to Images',
-                desc: 'Export every page of a PDF as a high-quality PNG at 150 DPI, zipped for easy download.',
-              },
-              {
-                icon: '🔒',
-                title: 'Privacy first',
-                desc: 'All processing happens in-memory on the server. No files are written to disk or stored.',
-              },
-              {
-                icon: '⚡',
-                title: 'Fast & local',
-                desc: 'Runs entirely on your machine. No cloud, no latency, no data leaving your network.',
-              },
-              {
-                icon: '✏️',
-                title: 'Custom filenames',
-                desc: 'Name your output file before downloading — no more "merged (1).pdf" clutter.',
-              },
-              {
-                icon: '🛡️',
-                title: 'Validated uploads',
-                desc: 'MIME type checked by content (not extension), size limits enforced, page count capped.',
-              },
-            ].map((feat, i) => (
-              <motion.div
-                key={feat.title}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.4, delay: i * 0.07 }}
-                className="p-5 rounded-2xl bg-gray-900/60 border border-gray-800 hover:border-violet-800/50 transition-colors"
-              >
-                <span className="text-2xl mb-3 block" aria-hidden="true">{feat.icon}</span>
-                <h3 className="font-semibold text-gray-100 mb-1">{feat.title}</h3>
-                <p className="text-sm text-gray-400 leading-relaxed">{feat.desc}</p>
-              </motion.div>
-            ))}
-          </div>
-        </motion.div>
-      </section>
+      {/* ------------------------------------------------------------------ */}
+      {/* FAQ                                                                  */}
+      {/* ------------------------------------------------------------------ */}
+      <FAQSection />
+
+      {/* ------------------------------------------------------------------ */}
+      {/* CTA                                                                  */}
+      {/* ------------------------------------------------------------------ */}
+      <CTASection />
 
       {/* ------------------------------------------------------------------ */}
       {/* Footer                                                               */}
       {/* ------------------------------------------------------------------ */}
       <footer
         data-scroll-section
-        className="py-8 px-6 text-center text-xs text-gray-600 border-t border-gray-800"
+        className="py-10 px-6 border-t border-gray-800/60"
       >
-        <p>MergeSnap — runs locally, stores nothing.</p>
+        <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
+          <span className="text-sm font-black tracking-tighter">
+            <span className="bg-gradient-to-r from-violet-400 to-indigo-400 bg-clip-text text-transparent">Merge</span>
+            <span className="text-gray-500 font-light">Snap</span>
+          </span>
+          <p className="text-xs text-gray-600">Runs locally · stores nothing · open source</p>
+          <div className="flex gap-4 text-xs text-gray-600">
+            <a href="#home" className="hover:text-gray-400 transition-colors">Home</a>
+            <a href="#how-it-works" className="hover:text-gray-400 transition-colors">How it works</a>
+            <a href="#faq" className="hover:text-gray-400 transition-colors">FAQ</a>
+          </div>
+        </div>
       </footer>
 
       {/* ------------------------------------------------------------------ */}
