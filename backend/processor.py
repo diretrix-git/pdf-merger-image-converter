@@ -7,6 +7,7 @@ requirement from the spec is satisfied by this in-memory approach.
 """
 
 import io
+import logging
 import threading
 import zipfile
 
@@ -16,6 +17,8 @@ import pypdf
 from pdf2image import convert_from_bytes
 
 from config import PROCESSING_TIMEOUT_SECONDS
+
+logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
@@ -237,25 +240,42 @@ def convert_to_images(pdf_bytes: bytes, dpi: int = 72) -> tuple[io.BytesIO, str]
     from concurrent.futures import ThreadPoolExecutor
 
     def _render_with_pymupdf() -> list[bytes]:
-        """Render all pages using PyMuPDF — fast, no subprocess."""
+        """
+        Render all pages using PyMuPDF — fast, no subprocess.
+
+        Each thread opens its own fitz.Document instance to avoid the
+        thread-safety issue with PyMuPDF's Document object (load_page
+        is not safe to call from multiple threads on the same Document).
+        """
         import fitz  # PyMuPDF
 
-        doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+        # Verify page count before spawning threads
+        probe = fitz.open(stream=pdf_bytes, filetype="pdf")
+        page_count = len(probe)
+        probe.close()
+
         mat = fitz.Matrix(dpi / 72, dpi / 72)  # scale matrix for target DPI
 
         def _render_page(page_num: int) -> bytes:
-            page = doc.load_page(page_num)
-            pix = page.get_pixmap(matrix=mat, alpha=False)
-            return pix.tobytes("png")
+            # Open a separate Document per thread — thread-safe
+            thread_doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+            try:
+                page = thread_doc.load_page(page_num)
+                pix = page.get_pixmap(matrix=mat, alpha=False)
+                return pix.tobytes("png")
+            finally:
+                thread_doc.close()
 
-        with ThreadPoolExecutor(max_workers=min(len(doc), 4)) as pool:
-            png_bytes_list = list(pool.map(_render_page, range(len(doc))))
+        logger.info("PyMuPDF rendering %d page(s) at %d DPI", page_count, dpi)
 
-        doc.close()
+        with ThreadPoolExecutor(max_workers=min(page_count, 4)) as pool:
+            png_bytes_list = list(pool.map(_render_page, range(page_count)))
+
         return png_bytes_list
 
     def _render_with_pdf2image() -> list[bytes]:
         """Fallback: render using pdf2image + Poppler."""
+        logger.warning("PyMuPDF failed — falling back to pdf2image/Poppler")
         images = convert_from_bytes(pdf_bytes, dpi=dpi)
         result = []
         for image in images:
@@ -268,11 +288,12 @@ def convert_to_images(pdf_bytes: bytes, dpi: int = 72) -> tuple[io.BytesIO, str]
         # Try PyMuPDF first (faster), fall back to pdf2image
         try:
             png_bytes_list = _render_with_pymupdf()
-        except Exception:
+        except Exception as e:
+            logger.warning("PyMuPDF raised %s — falling back to pdf2image", type(e).__name__)
             try:
                 png_bytes_list = _render_with_pdf2image()
-            except Exception as e:
-                raise ValueError(f"Could not convert PDF to images: {str(e)}")
+            except Exception as e2:
+                raise ValueError(f"Could not convert PDF to images: {str(e2)}")
 
         if len(png_bytes_list) == 1:
             buf = io.BytesIO(png_bytes_list[0])

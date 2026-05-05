@@ -1,4 +1,5 @@
 import io
+import logging
 import shutil
 import warnings
 
@@ -6,6 +7,8 @@ from flask import Flask, jsonify, request, send_file
 from flask_cors import CORS
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
+
+logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
 
 from config import (
     ALLOWED_MIME_TYPE,
