@@ -152,7 +152,7 @@ def merge():
         safe_name = sanitize_filename(f.filename or "upload.pdf")
         validate_mime_type(raw, safe_name)
         validate_magic_bytes(raw, safe_name)
-        validate_not_encrypted(raw, safe_name)
+        validate_not_encrypted(raw, safe_name)        # Fast bytes scan, pikepdf only if /Encrypt found
         # Skip bomb check for small files — saves ~200ms per file on typical uploads
         if len(raw) > 5 * 1024 * 1024:
             validate_uncompressed_size(raw, safe_name, MAX_UNCOMPRESSED_SIZE_BYTES)
@@ -207,7 +207,7 @@ def to_images():
     validate_mime_type(raw, safe_name)
     validate_magic_bytes(raw, safe_name)
     validate_page_count(raw, MAX_PAGE_COUNT)      # Early — before expensive checks
-    validate_not_encrypted(raw, safe_name)
+    validate_not_encrypted(raw, safe_name)        # Fast bytes scan, pikepdf only if /Encrypt found
     # Skip bomb check for small files — saves ~200ms on typical uploads
     if len(raw) > 5 * 1024 * 1024:
         validate_uncompressed_size(raw, safe_name, MAX_UNCOMPRESSED_SIZE_BYTES)
