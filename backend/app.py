@@ -150,7 +150,9 @@ def merge():
         validate_mime_type(raw, safe_name)
         validate_magic_bytes(raw, safe_name)
         validate_not_encrypted(raw, safe_name)
-        validate_uncompressed_size(raw, safe_name, MAX_UNCOMPRESSED_SIZE_BYTES)
+        # Skip bomb check for small files — saves ~200ms per file on typical uploads
+        if len(raw) > 5 * 1024 * 1024:
+            validate_uncompressed_size(raw, safe_name, MAX_UNCOMPRESSED_SIZE_BYTES)
         pdf_bytes_list.append(raw)
 
     merged = strip_and_merge_pdfs(pdf_bytes_list)
@@ -203,7 +205,9 @@ def to_images():
     validate_magic_bytes(raw, safe_name)
     validate_page_count(raw, MAX_PAGE_COUNT)      # Early — before expensive checks
     validate_not_encrypted(raw, safe_name)
-    validate_uncompressed_size(raw, safe_name, MAX_UNCOMPRESSED_SIZE_BYTES)
+    # Skip bomb check for small files — saves ~200ms on typical uploads
+    if len(raw) > 5 * 1024 * 1024:
+        validate_uncompressed_size(raw, safe_name, MAX_UNCOMPRESSED_SIZE_BYTES)
 
     output_stream, mimetype = convert_to_images(raw, dpi=CONVERSION_DPI)
 

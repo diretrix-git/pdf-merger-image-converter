@@ -85,7 +85,7 @@ Open `http://localhost:5173`.
 | Per-file size | 50 MB |
 | Combined request size | 50 MB |
 | Files per merge | 8 max |
-| Pages per conversion | 10 max |
+| Pages per conversion | 15 max |
 | Output DPI | 100 |
 | Rate limit | 10 requests/minute, 50/day per IP |
 
