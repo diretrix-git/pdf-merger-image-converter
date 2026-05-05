@@ -4,6 +4,7 @@ flask-limiter==3.9.0
 limits==3.14.0
 pypdf==5.4.0
 pikepdf==9.4.2
+pymupdf==1.25.5
 pdf2image==1.17.0
 Pillow==11.2.1
 python-magic==0.4.27

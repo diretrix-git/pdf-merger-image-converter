@@ -1,6 +1,8 @@
 FROM python:3.11-slim
 
-# Install Poppler (required by pdf2image)
+# System dependencies:
+# - poppler-utils: fallback PDF renderer (pdf2image) — PyMuPDF is primary
+# - libmagic1: required by python-magic for MIME type detection
 RUN apt-get update && apt-get install -y --no-install-recommends \
     poppler-utils \
     libmagic1 \
