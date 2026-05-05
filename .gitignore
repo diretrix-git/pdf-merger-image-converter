@@ -10,3 +10,6 @@ Thumbs.db
 
 # AI knowledge base — local only, not tracked in git
 PROJECT.md
+
+# Tech stack reference — local only
+/TECH_STACK.md

@@ -85,8 +85,8 @@ Open `http://localhost:5173`.
 | Per-file size | 50 MB |
 | Combined request size | 50 MB |
 | Files per merge | 8 max |
-| Pages per conversion | 20 max |
-| Output DPI | 150 |
+| Pages per conversion | 10 max |
+| Output DPI | 100 |
 | Rate limit | 10 requests/minute, 50/day per IP |
 
 ---
@@ -99,7 +99,7 @@ Open `http://localhost:5173`.
 - Embedded JavaScript, auto-actions, and dangerous PDF keys stripped recursively from all merged output
 - Document metadata (author, creator, dates) stripped from merged output
 - Filenames sanitized with `werkzeug.secure_filename` before any use
-- CORS locked to `http://localhost:5173` (update for production deployment)
+- CORS locked to `http://localhost:5173` and `https://pdf-merger-image-converter.vercel.app`
 - IP-based rate limiting on all upload endpoints
 
 ---
@@ -122,7 +122,15 @@ Tests that require Poppler are automatically skipped when it's not installed.
 
 ## Deployment
 
-Quick summary:
-1. Backend → Render Web Service, root dir `pdf-app/backend`, start command `gunicorn app:app`, build script installs `poppler-utils`
-2. Frontend → Vercel, root dir `pdf-app/frontend`, set `VITE_API_URL` env var to your Render URL
-3. Update CORS in `backend/app.py` to include your Vercel URL
+### Backend → Render (Docker)
+1. Create a new **Web Service** on [render.com](https://render.com)
+2. Connect your GitHub repo
+3. Set **Runtime** to **Docker**, **Root Directory** to `pdf-app/backend`
+4. Deploy — the `Dockerfile` installs Poppler and all Python deps automatically
+5. Copy your Render URL → add to CORS in `backend/app.py` → redeploy
+
+### Frontend → Vercel
+1. Connect your GitHub repo on [vercel.com](https://vercel.com)
+2. Set **Root Directory** to `pdf-app/frontend`
+3. Add environment variable: `VITE_API_URL` = your Render URL
+4. Deploy
