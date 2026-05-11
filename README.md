@@ -10,7 +10,7 @@ All processing happens in-memory on your local machine. Files are never written 
 
 - **Merge PDFs** — combine up to 8 PDFs into one file, in the exact order you choose
 - **Drag to reorder** — drag files up or down before merging (works on both desktop and mobile)
-- **Convert to PNGs** — convert a PDF's pages to PNG images (single page → PNG, multi-page → ZIP)
+- **Convert to PNG or JPG** — convert a PDF's pages to images; choose your format before converting
 - **Custom filenames** — name your output file before downloading
 - **Privacy first** — all processing is in-memory, files are deleted immediately after download
 
@@ -20,7 +20,7 @@ All processing happens in-memory on your local machine. Files are never written 
 
 | Layer | Tech |
 |---|---|
-| Backend | Python 3.12, Flask 3.1, pikepdf 9.4, pdf2image 1.17, Flask-Limiter 3.9 |
+| Backend | Python 3.11, Flask 3.1, pikepdf 9.4, PyMuPDF 1.25, Flask-Limiter 3.9 |
 | Frontend | React 19, TypeScript, Vite 5, Tailwind CSS 3, Framer Motion 12, Locomotive Scroll 4 |
 
 ---
@@ -29,17 +29,15 @@ All processing happens in-memory on your local machine. Files are never written 
 
 - **Python 3.11+**
 - **Node.js 18+**
-- **Poppler** — required for PDF→image conversion
+- **Poppler** — optional fallback for PDF→image conversion (PyMuPDF handles most cases without it)
 
-### Installing Poppler
+### Installing Poppler (optional)
 
 | OS | Command |
 |---|---|
 | Windows | Download from [poppler-windows releases](https://github.com/oschwartz10612/poppler-windows/releases), extract, add `Library\bin\` to system PATH |
 | macOS | `brew install poppler` |
 | Linux | `sudo apt install poppler-utils` |
-
-Verify with `pdftoppm -v` in a new terminal. Restart the Flask server after installing.
 
 ---
 
@@ -75,7 +73,7 @@ Open `http://localhost:5173`.
 | Method | Endpoint | Description |
 |---|---|---|
 | POST | `/merge` | Merge 2–8 PDFs. Form field: `files` (multiple). Returns `merged.pdf`. |
-| POST | `/to-images` | Convert a PDF to PNGs. Form field: `file` (single). Returns PNG (1 page) or ZIP (multi-page). |
+| POST | `/to-images` | Convert a PDF to images. Form fields: `file` (single), `format` (`png` or `jpg`). Returns image (1 page) or ZIP (multi-page). |
 | GET | `/health` | Reports server status and Poppler availability. |
 
 ### Limits
@@ -86,7 +84,7 @@ Open `http://localhost:5173`.
 | Combined request size | 50 MB |
 | Files per merge | 8 max |
 | Pages per conversion | 15 max |
-| Output DPI | 100 |
+| Output DPI | 72 |
 | Rate limit | 10 requests/minute, 50/day per IP |
 
 ---
@@ -111,7 +109,7 @@ Open `http://localhost:5173`.
 cd pdf-app/backend
 pytest tests/ -v
 
-# Frontend (34 tests)
+# Frontend (37 tests)
 cd pdf-app/frontend
 npx vitest run
 ```
@@ -126,7 +124,7 @@ Tests that require Poppler are automatically skipped when it's not installed.
 1. Create a new **Web Service** on [render.com](https://render.com)
 2. Connect your GitHub repo
 3. Set **Runtime** to **Docker**, **Root Directory** to `pdf-app/backend`
-4. Deploy — the `Dockerfile` installs Poppler and all Python deps automatically
+4. Deploy — the `Dockerfile` installs all dependencies automatically
 5. Copy your Render URL → add to CORS in `backend/app.py` → redeploy
 
 ### Frontend → Vercel
