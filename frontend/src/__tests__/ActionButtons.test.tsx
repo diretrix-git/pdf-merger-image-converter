@@ -9,6 +9,8 @@ function renderButtons(overrides: Partial<Parameters<typeof ActionButtons>[0]> =
     fileCount: 2,
     combinedSizeBytes: 1024,
     isLoading: false,
+    imageFormat: 'png' as const,
+    onFormatChange: vi.fn(),
     onMerge: vi.fn(),
     onConvert: vi.fn(),
     ...overrides,
@@ -17,17 +19,20 @@ function renderButtons(overrides: Partial<Parameters<typeof ActionButtons>[0]> =
   return defaults
 }
 
+// Helper — matches "Convert to PNG" or "Convert to JPG"
+const convertBtn = () => screen.getByRole('button', { name: /convert to (png|jpg)/i })
+
 describe('ActionButtons', () => {
   it('renders Merge and Convert buttons', () => {
     renderButtons()
     expect(screen.getByRole('button', { name: /merge pdfs/i })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /convert to images/i })).toBeInTheDocument()
+    expect(convertBtn()).toBeInTheDocument()
   })
 
   it('disables both buttons when fileCount is 0', () => {
     renderButtons({ fileCount: 0 })
     expect(screen.getByRole('button', { name: /merge pdfs/i })).toBeDisabled()
-    expect(screen.getByRole('button', { name: /convert to images/i })).toBeDisabled()
+    expect(convertBtn()).toBeDisabled()
   })
 
   it('disables merge button when only 1 file is staged', () => {
@@ -37,7 +42,7 @@ describe('ActionButtons', () => {
 
   it('disables convert button when more than 1 file is staged', () => {
     renderButtons({ fileCount: 3 })
-    expect(screen.getByRole('button', { name: /convert to images/i })).toBeDisabled()
+    expect(convertBtn()).toBeDisabled()
   })
 
   it('enables merge button when 2+ files are staged', () => {
@@ -47,13 +52,13 @@ describe('ActionButtons', () => {
 
   it('enables convert button when exactly 1 file is staged', () => {
     renderButtons({ fileCount: 1 })
-    expect(screen.getByRole('button', { name: /convert to images/i })).not.toBeDisabled()
+    expect(convertBtn()).not.toBeDisabled()
   })
 
   it('disables both buttons when combined size exceeds 50 MB', () => {
     renderButtons({ fileCount: 2, combinedSizeBytes: MAX_COMBINED + 1 })
     expect(screen.getByRole('button', { name: /merge pdfs/i })).toBeDisabled()
-    expect(screen.getByRole('button', { name: /convert to images/i })).toBeDisabled()
+    expect(convertBtn()).toBeDisabled()
   })
 
   it('shows an over-limit warning when combined size exceeds 50 MB', () => {
@@ -65,7 +70,7 @@ describe('ActionButtons', () => {
   it('disables both buttons when isLoading is true', () => {
     renderButtons({ isLoading: true })
     expect(screen.getByRole('button', { name: /merge pdfs/i })).toBeDisabled()
-    expect(screen.getByRole('button', { name: /convert to images/i })).toBeDisabled()
+    expect(convertBtn()).toBeDisabled()
   })
 
   it('re-enables buttons when isLoading returns to false', () => {
@@ -74,6 +79,8 @@ describe('ActionButtons', () => {
         fileCount={2}
         combinedSizeBytes={1024}
         isLoading={true}
+        imageFormat="png"
+        onFormatChange={vi.fn()}
         onMerge={vi.fn()}
         onConvert={vi.fn()}
       />
@@ -85,6 +92,8 @@ describe('ActionButtons', () => {
         fileCount={2}
         combinedSizeBytes={1024}
         isLoading={false}
+        imageFormat="png"
+        onFormatChange={vi.fn()}
         onMerge={vi.fn()}
         onConvert={vi.fn()}
       />
@@ -100,7 +109,19 @@ describe('ActionButtons', () => {
 
   it('calls onConvert when the Convert button is clicked', () => {
     const { onConvert } = renderButtons({ fileCount: 1 })
-    fireEvent.click(screen.getByRole('button', { name: /convert to images/i }))
+    fireEvent.click(convertBtn())
     expect(onConvert).toHaveBeenCalledOnce()
+  })
+
+  it('shows PNG/JPG format toggle when exactly 1 file is staged', () => {
+    renderButtons({ fileCount: 1 })
+    expect(screen.getByRole('button', { name: /^PNG$/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /^JPG$/i })).toBeInTheDocument()
+  })
+
+  it('calls onFormatChange when JPG is selected', () => {
+    const { onFormatChange } = renderButtons({ fileCount: 1 })
+    fireEvent.click(screen.getByRole('button', { name: /^JPG$/i }))
+    expect(onFormatChange).toHaveBeenCalledWith('jpg')
   })
 })

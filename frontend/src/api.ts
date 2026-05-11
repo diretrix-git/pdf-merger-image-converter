@@ -39,9 +39,13 @@ export async function mergePdfs(files: File[]): Promise<Blob> {
  * @returns Blob and the output type ('png' or 'zip').
  * @throws Error with a human-readable message on validation or server error.
  */
-export async function convertToImages(file: File): Promise<{ blob: Blob; type: 'png' | 'zip' }> {
+export async function convertToImages(
+  file: File,
+  format: 'png' | 'jpg' = 'png'
+): Promise<{ blob: Blob; type: 'png' | 'jpg' | 'zip' }> {
   const formData = new FormData()
   formData.append('file', file)
+  formData.append('format', format)
 
   const response = await fetch(`${BASE_URL}/to-images`, {
     method: 'POST',
@@ -59,7 +63,10 @@ export async function convertToImages(file: File): Promise<{ blob: Blob; type: '
   }
 
   const blob = await response.blob()
-  const type = contentType.includes('image/png') ? 'png' : 'zip'
+  let type: 'png' | 'jpg' | 'zip'
+  if (contentType.includes('image/jpeg')) type = 'jpg'
+  else if (contentType.includes('image/png')) type = 'png'
+  else type = 'zip'
   return { blob, type }
 }
 

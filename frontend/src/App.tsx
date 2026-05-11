@@ -31,6 +31,7 @@ import { downloadBlob } from './downloadBlob'
 
 export default function App() {
   const [isLoading, setIsLoading] = useState(false)
+  const [imageFormat, setImageFormat] = useState<'png' | 'jpg'>('png')
 
   // Custom hooks
   const { toasts, addToast, dismissToast } = useToasts()
@@ -78,8 +79,10 @@ export default function App() {
   const handleConvert = async () => {
     setIsLoading(true)
     try {
-      const { blob, type } = await convertToImages(files[0].file)
-      openModal(blob, type === 'png' ? 'page' : 'pages', type)
+      const { blob, type } = await convertToImages(files[0].file, imageFormat)
+      // type is 'png', 'jpg', or 'zip'
+      const defaultName = type === 'zip' ? 'pages' : 'page'
+      openModal(blob, defaultName, type)
     } catch (err) {
       addToast({ type: 'error', message: err instanceof Error ? err.message : 'An unexpected error occurred.' })
     } finally {
@@ -190,6 +193,8 @@ export default function App() {
                 fileCount={files.length}
                 combinedSizeBytes={combinedSizeBytes}
                 isLoading={isLoading}
+                imageFormat={imageFormat}
+                onFormatChange={setImageFormat}
                 onMerge={handleMerge}
                 onConvert={handleConvert}
               />

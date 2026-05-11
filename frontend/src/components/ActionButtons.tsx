@@ -1,19 +1,18 @@
 ﻿import { motion, AnimatePresence } from 'framer-motion'
 
-const MAX_COMBINED_SIZE_BYTES = 50 * 1024 * 1024 // 50 MB
+const MAX_COMBINED_SIZE_BYTES = 50 * 1024 * 1024
 const MAX_FILES_PER_MERGE = 8
 
-interface ActionButtonsProps {
+export interface ActionButtonsProps {
   fileCount: number
   combinedSizeBytes: number
   isLoading: boolean
+  imageFormat: 'png' | 'jpg'
+  onFormatChange: (fmt: 'png' | 'jpg') => void
   onMerge: () => void
   onConvert: () => void
 }
 
-/**
- * Spinning loader indicator (Framer Motion).
- */
 function Spinner() {
   return (
     <motion.span
@@ -25,29 +24,23 @@ function Spinner() {
   )
 }
 
-/**
- * Merge and Convert action buttons.
- *
- * Disabled when:
- * - No files are staged (fileCount === 0)
- * - Combined size exceeds 50 MB
- * - A request is in progress (isLoading)
- */
 export function ActionButtons({
   fileCount,
   combinedSizeBytes,
   isLoading,
+  imageFormat,
+  onFormatChange,
   onMerge,
   onConvert,
 }: ActionButtonsProps) {
   const isOverLimit = combinedSizeBytes > MAX_COMBINED_SIZE_BYTES
   const isDisabled = fileCount === 0 || isOverLimit || isLoading
-
   const mergeDisabled = isDisabled || fileCount < 2
   const convertDisabled = isDisabled || fileCount !== 1
 
   return (
     <div className="flex flex-col gap-3 w-full">
+
       {/* Over-limit warning */}
       <AnimatePresence>
         {isOverLimit && (
@@ -70,7 +63,7 @@ export function ActionButtons({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="text-xs text-gray-500 text-center"
+            className="text-xs text-white/40 text-center"
           >
             Add at least one more file to merge
           </motion.p>
@@ -87,8 +80,42 @@ export function ActionButtons({
             className="text-xs text-amber-400 text-center"
             role="status"
           >
-            Maximum {MAX_FILES_PER_MERGE} files reached. Remove a file to add more.
+            Maximum {MAX_FILES_PER_MERGE} files reached.
           </motion.p>
+        )}
+      </AnimatePresence>
+
+      {/* PNG / JPG format toggle — only shown when a single file is staged */}
+      <AnimatePresence>
+        {fileCount === 1 && !isOverLimit && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.2 }}
+            className="flex items-center justify-center gap-2"
+          >
+            <span className="text-xs text-white/40">Format:</span>
+            <div className="flex rounded-lg overflow-hidden border border-white/[0.10] text-xs font-medium">
+              {(['png', 'jpg'] as const).map((fmt) => (
+                <button
+                  key={fmt}
+                  type="button"
+                  onClick={() => onFormatChange(fmt)}
+                  className={`px-3 py-1.5 transition-colors duration-150 ${
+                    imageFormat === fmt
+                      ? 'bg-indigo-600 text-white'
+                      : 'bg-white/[0.04] text-white/50 hover:text-white hover:bg-white/[0.08]'
+                  }`}
+                >
+                  {fmt.toUpperCase()}
+                </button>
+              ))}
+            </div>
+            <span className="text-xs text-white/25">
+              {imageFormat === 'jpg' ? 'smaller file' : 'lossless'}
+            </span>
+          </motion.div>
         )}
       </AnimatePresence>
 
@@ -123,7 +150,7 @@ export function ActionButtons({
           whileTap={convertDisabled ? {} : { scale: 0.98 }}
           onClick={onConvert}
           disabled={convertDisabled}
-          aria-label="Convert to Images"
+          aria-label={`Convert to ${imageFormat.toUpperCase()}`}
           aria-busy={isLoading}
           className={`
             flex-1 flex items-center justify-center gap-2
@@ -138,7 +165,7 @@ export function ActionButtons({
           `}
         >
           {isLoading ? <Spinner /> : <span aria-hidden="true">🖼️</span>}
-          <span>Convert to PNGs</span>
+          <span>Convert to {imageFormat.toUpperCase()}</span>
         </motion.button>
       </div>
 
@@ -149,12 +176,13 @@ export function ActionButtons({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="text-xs text-gray-500 text-center"
+            className="text-xs text-white/40 text-center"
           >
             Select a single file to convert to images
           </motion.p>
         )}
       </AnimatePresence>
+
     </div>
   )
 }

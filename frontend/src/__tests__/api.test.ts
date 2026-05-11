@@ -123,6 +123,20 @@ describe('convertToImages', () => {
     expect(result.type).toBe('png')
   })
 
+  it('returns { blob, type: "jpg" } when the response is image/jpeg', async () => {
+    const jpgBlob = new Blob(['\xff\xd8\xff'], { type: 'image/jpeg' })
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(makeResponse(true, 200, 'image/jpeg', jpgBlob))
+    )
+
+    const file = new File(['%PDF-1.4'], 'single.pdf', { type: 'application/pdf' })
+    const result = await convertToImages(file, 'jpg')
+
+    expect(result.blob).toBeInstanceOf(Blob)
+    expect(result.type).toBe('jpg')
+  })
+
   it('throws with the server error message on a 400 response', async () => {
     vi.stubGlobal(
       'fetch',
