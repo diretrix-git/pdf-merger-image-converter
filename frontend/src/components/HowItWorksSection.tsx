@@ -16,7 +16,7 @@ const steps = [
     tag: 'Step 02',
     label: 'Choose action',
     title: 'Choose what to do',
-    desc: 'Hit "Merge PDFs" to stitch everything into a single file, or "Convert to PNGs" to turn every page into a crisp image — one output per page.',
+    desc: 'Hit "Merge PDFs" to stitch everything into a single file, or "Convert to PNG/JPG" to turn every page into a crisp image — choose your format before converting.',
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
         <path d="M13 10V3L4 14h7v7l9-11h-7z" />

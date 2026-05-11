@@ -5,6 +5,7 @@ interface DownloadModalProps {
   open: boolean
   defaultName: string
   extension: string
+  blobSize?: number   // size of the blob in bytes for approximate display
   onConfirm: (filename: string) => void
   onCancel: () => void
 }
@@ -19,6 +20,7 @@ export function DownloadModal({
   open,
   defaultName,
   extension,
+  blobSize,
   onConfirm,
   onCancel,
 }: DownloadModalProps) {
@@ -91,10 +93,19 @@ export function DownloadModal({
                 </h2>
                 <p className="text-sm text-gray-400">
                   {extension === 'zip'
-                    ? 'Your pages will download as a ZIP containing one PNG per page.'
+                    ? 'Multiple pages — downloads as a ZIP of images.'
+                    : extension === 'jpg'
+                    ? 'Single page — downloads as a JPG image.'
                     : extension === 'png'
-                    ? 'Single-page PDF — downloads as a PNG image directly.'
+                    ? 'Single page — downloads as a PNG image.'
                     : 'Choose a name before the download starts.'}
+                  {blobSize != null && blobSize > 0 && (
+                    <span className="ml-1 text-white/50">
+                      (~{blobSize >= 1024 * 1024
+                        ? `${(blobSize / (1024 * 1024)).toFixed(1)} MB`
+                        : `${Math.round(blobSize / 1024)} KB`})
+                    </span>
+                  )}
                 </p>
               </div>
 

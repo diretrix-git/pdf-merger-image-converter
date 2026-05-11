@@ -60,9 +60,15 @@ export default function App() {
     }
   }, [])
 
-  // -------------------------------------------------------------------------
-  // API actions
-  // -------------------------------------------------------------------------
+  // Update Locomotive Scroll when file list changes height
+  // (AnimatePresence height animations cause the scroll container to lose track)
+  useEffect(() => {
+    if (locomotiveRef.current) {
+      // Small delay to let the animation finish before recalculating
+      const t = setTimeout(() => locomotiveRef.current?.update(), 250)
+      return () => clearTimeout(t)
+    }
+  }, [files.length, isLoading])
 
   const handleMerge = async () => {
     setIsLoading(true)
@@ -143,7 +149,8 @@ export default function App() {
               <span className="text-white/60 font-light">Snap</span>
             </h1>
             <p className="text-lg text-white/70 leading-relaxed">
-              Merge multiple PDFs into one, or convert any PDF's pages into PNG images — processed in-memory, nothing stored.
+              Merge multiple PDFs into one, or convert any PDF's pages into
+              PNG or JPG images — processed in-memory, nothing stored.
             </p>
             <div className="mt-4 flex items-center justify-center gap-2 text-xs text-white/40">
               <span>🔒</span>
@@ -236,6 +243,7 @@ export default function App() {
           open={modal.open}
           defaultName={modal.defaultName}
           extension={modal.extension}
+          blobSize={modal.blob?.size}
           onConfirm={handleDownloadConfirm}
           onCancel={closeModal}
         />
