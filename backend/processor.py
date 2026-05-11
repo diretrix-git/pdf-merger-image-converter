@@ -219,59 +219,60 @@ def merge_pdfs(pdf_streams: list[io.BytesIO]) -> io.BytesIO:
 # Convert to images
 # ---------------------------------------------------------------------------
 
-def convert_to_images(pdf_bytes: bytes, dpi: int = 72) -> tuple[io.BytesIO, str]:
+def convert_to_images(pdf_bytes: bytes, dpi: int = 72, fmt: str = "png") -> tuple[io.BytesIO, str]:
     """
-    Convert each page of a PDF to a PNG image, with a hard processing timeout.
+    Convert each page of a PDF to an image, with a hard processing timeout.
 
-    Uses PyMuPDF (fitz) as the primary renderer — no subprocess spawn,
-    no Poppler binary call, ~3–5x faster than pdf2image for typical PDFs.
+    Args:
+        pdf_bytes: Raw PDF bytes.
+        dpi:       Render resolution. Default 72.
+        fmt:       Output format — "png" or "jpg". Default "png".
+                   JPG is smaller and faster to encode; PNG is lossless.
+
+    Uses PyMuPDF (fitz) as the primary renderer — no subprocess spawn.
     Falls back to pdf2image + Poppler if PyMuPDF fails.
 
-    Performance optimisations:
-    - PyMuPDF renders directly to PNG bytes in-process (no shell subprocess)
-    - Pages rendered in parallel using ThreadPoolExecutor
-    - PNG compress_level=1 (fastest)
-    - ZIP_STORED (PNGs are already compressed — no benefit from DEFLATE)
-
-    - 1-page PDF  → returns a raw PNG BytesIO + mimetype "image/png"
-    - Multi-page  → returns a ZIP BytesIO + mimetype "application/zip"
-      ZIP entries are named page_1.png … page_N.png (1-based).
+    Returns:
+        - 1-page PDF  → (raw image BytesIO, "image/png" or "image/jpeg")
+        - Multi-page  → (ZIP BytesIO, "application/zip")
+          ZIP entries named page_1.png/jpg … page_N.png/jpg
     """
     from concurrent.futures import ThreadPoolExecutor
 
-    def _render_with_pymupdf() -> list[bytes]:
-        """
-        Render all pages using PyMuPDF — fast, no subprocess.
+    # Normalise format
+    fmt = fmt.lower().strip()
+    if fmt not in ("png", "jpg", "jpeg"):
+        fmt = "png"
+    pil_fmt = "JPEG" if fmt in ("jpg", "jpeg") else "PNG"
+    ext = "jpg" if fmt in ("jpg", "jpeg") else "png"
+    single_mimetype = "image/jpeg" if ext == "jpg" else "image/png"
 
-        Each thread opens its own fitz.Document instance to avoid the
-        thread-safety issue with PyMuPDF's Document object (load_page
-        is not safe to call from multiple threads on the same Document).
-        """
+    def _render_with_pymupdf() -> list[bytes]:
+        """Render all pages using PyMuPDF — thread-safe (one doc per thread)."""
         import fitz  # PyMuPDF
 
-        # Verify page count before spawning threads
         probe = fitz.open(stream=pdf_bytes, filetype="pdf")
         page_count = len(probe)
         probe.close()
 
-        mat = fitz.Matrix(dpi / 72, dpi / 72)  # scale matrix for target DPI
+        mat = fitz.Matrix(dpi / 72, dpi / 72)
 
         def _render_page(page_num: int) -> bytes:
-            # Open a separate Document per thread — thread-safe
             thread_doc = fitz.open(stream=pdf_bytes, filetype="pdf")
             try:
                 page = thread_doc.load_page(page_num)
                 pix = page.get_pixmap(matrix=mat, alpha=False)
+                if ext == "jpg":
+                    # PyMuPDF can output JPEG directly — faster than PNG
+                    return pix.tobytes("jpeg", jpg_quality=85)
                 return pix.tobytes("png")
             finally:
                 thread_doc.close()
 
-        logger.info("PyMuPDF rendering %d page(s) at %d DPI", page_count, dpi)
+        logger.info("PyMuPDF rendering %d page(s) at %d DPI as %s", page_count, dpi, ext.upper())
 
         with ThreadPoolExecutor(max_workers=min(page_count, 4)) as pool:
-            png_bytes_list = list(pool.map(_render_page, range(page_count)))
-
-        return png_bytes_list
+            return list(pool.map(_render_page, range(page_count)))
 
     def _render_with_pdf2image() -> list[bytes]:
         """Fallback: render using pdf2image + Poppler."""
@@ -280,30 +281,32 @@ def convert_to_images(pdf_bytes: bytes, dpi: int = 72) -> tuple[io.BytesIO, str]
         result = []
         for image in images:
             buf = io.BytesIO()
-            image.save(buf, format="PNG", compress_level=1)
+            if pil_fmt == "JPEG":
+                image.save(buf, format="JPEG", quality=85, optimize=True)
+            else:
+                image.save(buf, format="PNG", compress_level=1)
             result.append(buf.getvalue())
         return result
 
     def _do_convert() -> tuple[io.BytesIO, str]:
-        # Try PyMuPDF first (faster), fall back to pdf2image
         try:
-            png_bytes_list = _render_with_pymupdf()
+            img_bytes_list = _render_with_pymupdf()
         except Exception as e:
             logger.warning("PyMuPDF raised %s — falling back to pdf2image", type(e).__name__)
             try:
-                png_bytes_list = _render_with_pdf2image()
+                img_bytes_list = _render_with_pdf2image()
             except Exception as e2:
                 raise ValueError(f"Could not convert PDF to images: {str(e2)}")
 
-        if len(png_bytes_list) == 1:
-            buf = io.BytesIO(png_bytes_list[0])
+        if len(img_bytes_list) == 1:
+            buf = io.BytesIO(img_bytes_list[0])
             buf.seek(0)
-            return buf, "image/png"
+            return buf, single_mimetype
 
         zip_buffer = io.BytesIO()
         with zipfile.ZipFile(zip_buffer, mode="w", compression=zipfile.ZIP_STORED) as zf:
-            for index, png_bytes in enumerate(png_bytes_list, start=1):
-                zf.writestr(f"page_{index}.png", png_bytes)
+            for index, img_bytes in enumerate(img_bytes_list, start=1):
+                zf.writestr(f"page_{index}.{ext}", img_bytes)
 
         zip_buffer.seek(0)
         return zip_buffer, "application/zip"

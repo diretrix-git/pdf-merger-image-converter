@@ -202,6 +202,14 @@ def to_images():
     validate_files_present([file] if file is not None else [])
     validate_file_size(file, MAX_FILE_SIZE_BYTES)
 
+    # Read and validate the requested output format (default: png)
+    image_format = request.form.get("format", "png").lower().strip()
+    if image_format not in ("png", "jpg", "jpeg"):
+        return jsonify({"error": "Invalid format. Use 'png' or 'jpg'."}), 400
+    # Normalise jpeg → jpg
+    if image_format == "jpeg":
+        image_format = "jpg"
+
     raw = file.read()
     safe_name = sanitize_filename(file.filename or "upload.pdf")
     validate_mime_type(raw, safe_name)
@@ -212,18 +220,19 @@ def to_images():
     if len(raw) > 5 * 1024 * 1024:
         validate_uncompressed_size(raw, safe_name, MAX_UNCOMPRESSED_SIZE_BYTES)
 
-    output_stream, mimetype = convert_to_images(raw, dpi=CONVERSION_DPI)
+    output_stream, mimetype = convert_to_images(raw, dpi=CONVERSION_DPI, fmt=image_format)
 
-    if mimetype == "image/png":
-        # Single-page PDF — return a raw PNG
+    if mimetype in ("image/png", "image/jpeg"):
+        # Single-page PDF — return raw image
+        ext = "jpg" if image_format == "jpg" else "png"
         return send_file(
             output_stream,
-            mimetype="image/png",
+            mimetype=mimetype,
             as_attachment=True,
-            download_name="page.png",
+            download_name=f"page.{ext}",
         )
 
-    # Multi-page PDF — return a ZIP of PNGs
+    # Multi-page PDF — return a ZIP
     return send_file(
         output_stream,
         mimetype="application/zip",
