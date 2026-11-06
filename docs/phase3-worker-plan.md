@@ -17,3 +17,9 @@ The existing best-effort decompressed-stream scan moves inside isolation and app
 3. Add synthetic-PDF route regressions for order, PNG/JPG/ZIP, malformed inputs, small compressed streams, timeout/crash and overload; retain the existing suite.
 4. Run backend/frontend tests, supported type/lint/build checks, dependency/license checks and a fresh review. Distinguish baseline failures and platform verification gaps.
 5. Update README/rollout/validation notes and exact-branch deployment suppression. Commit on `fix/phase3-isolated-pdf-workers-2026-11-06`, open a separate draft PR, and stop without merging/deploying or editing PR #2/portfolio.
+
+## Independent-review corrections
+
+Repair the reproduced lifecycle failure at `38182e24`: defer the first cleanup exception, make bounded attempts at group termination and direct-worker reaping, retain incomplete state for retry, and never signal an already-completed group again during a later partial-cleanup retry. Preserve POSIX cleanup after leader exit. Keep Windows job handles until successful close and attempt kill-on-close fallback even after termination errors; validate control flow with simulated APIs without claiming native platform validation.
+
+Tighten the private result protocol: string MIME appropriate for merge or requested conversion format (plus ZIP), nonempty regular output, existing size/metadata bounds, controlled malformed-result errors. Keep public successful responses unchanged. First run permanent signal/protocol regressions against `38182e24`, then rerun after repair, full checks and targeted probes. Update rollout/validation evidence, obtain a fresh review, and append a commit to the existing PR branch without merging or deploying.

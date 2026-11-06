@@ -10,7 +10,7 @@ A React and Flask PDF utility. Merge PDF files in their selected file order, or 
 
 ## Processing and privacy
 
-Each admitted request uses a disposable Python subprocess. The supervisor terminates its process group on POSIX, or its Windows Job Object, on completion/error/timeout/cancellation, then reaps the direct child and removes the private job directory. Inputs, protocol files, renderer intermediates and output may temporarily exist on disk. Multipart parsing can also spool uploads outside that directory. Response bytes stay in the API process until the response closes.
+Each admitted request uses a disposable Python subprocess. On completion/error/timeout/cancellation, the supervisor makes bounded attempts to terminate its POSIX process group or Windows Job Object, reap the direct child and remove the private job directory. Interrupted/partial cleanup remains retryable; the first interruption propagates after best-effort cleanup. Persistent OS failures can leave resources and are not a successful response. Inputs, protocol files, renderer intermediates and output may temporarily exist on disk. Multipart parsing can also spool uploads outside that directory. Response bytes stay in the API process until the response closes.
 
 This is lifecycle isolation, not a hostile-file sandbox, secure erasure, or a hosting-level retention guarantee. A browser disconnect does not reliably interrupt WSGI computation: work can continue until completion or the configured deadline. Abrupt API/host termination can bypass Python cleanup. See [rollout and limitations](docs/phase3-rollout.md) before exposing the API publicly.
 

@@ -38,6 +38,31 @@ def _integer(name, default, minimum=0):
     return value
 
 
+def _cleanup_preserving_interrupt(operation, label, pending):
+    try:
+        operation()
+    except BaseException as error:
+        if pending is None or isinstance(pending, Exception):
+            raise
+        # Preserve an active KeyboardInterrupt/SystemExit while recording that
+        # additional cleanup failed. On normal/error returns cleanup failures
+        # still propagate; they are never converted to a successful response.
+        pending.add_note(f"Additional {label} failed ({type(error).__name__}); cleanup may be incomplete.")
+
+
+@contextmanager
+def _job_directory(root):
+    directory = tempfile.TemporaryDirectory(prefix="mergesnap-job-", dir=root)
+    pending = None
+    try:
+        yield directory.name
+    except BaseException as error:
+        pending = error
+        raise
+    finally:
+        _cleanup_preserving_interrupt(directory.cleanup, "job directory cleanup", pending)
+
+
 class JobRunner:
     def __init__(self, max_jobs=None, timeout=None, temp_root=None):
         self.max_jobs = max_jobs if max_jobs is not None else _integer("PDF_MAX_JOBS", 1, 1)
@@ -74,7 +99,7 @@ class JobRunner:
     def _execute(self, operation, inputs, fmt="png", dpi=72, cancel_event=None):
         if operation not in {"merge", "convert"}: raise ValueError("Unknown PDF operation")
         deadline = time.monotonic() + self.timeout
-        with tempfile.TemporaryDirectory(prefix="mergesnap-job-", dir=self.temp_root) as name:
+        with _job_directory(self.temp_root) as name:
             directory = Path(name)
             entries = []
             for index, (data, filename) in enumerate(inputs):
@@ -87,6 +112,7 @@ class JobRunner:
                 "output_limit": self.output_limit, "expansion_limit": self.expansion_limit,
             }), encoding="utf-8")
             worker = None
+            pending = None
             try:
                 if cancel_event is not None and cancel_event.is_set():
                     raise JobCancelled("PDF processing was cancelled.")
@@ -112,18 +138,33 @@ class JobRunner:
                     except (ValueError, OSError) as error: raise JobError("PDF worker returned an invalid result.") from error
                     if not isinstance(result, dict):
                         raise JobError("PDF worker returned an invalid result.")
-                    if result.get("status") != 200:
-                        status = result.get("status", 500)
-                        raise JobError(result.get("error", "PDF processing failed."), status if status in (400, 422, 500) else 500)
+                    status = result.get("status")
+                    if type(status) is not int or status not in (200, 400, 422, 500):
+                        raise JobError("PDF worker returned an invalid result.")
+                    if status != 200:
+                        message = result.get("error")
+                        if not isinstance(message, str):
+                            raise JobError("PDF worker returned an invalid result.")
+                        raise JobError(message, status)
                     output = directory / "output.bin"
                     mime = result.get("mimetype")
-                    if mime not in {"application/pdf", "application/zip", "image/png", "image/jpeg"} or not output.is_file() or output.is_symlink():
+                    allowed_mimes = {"application/pdf"} if operation == "merge" else {
+                        "application/zip", "image/jpeg" if fmt in ("jpg", "jpeg") else "image/png",
+                    }
+                    if not isinstance(mime, str) or mime not in allowed_mimes or not output.is_file() or output.is_symlink():
                         raise JobError("PDF worker returned an invalid result.")
-                    if output.stat().st_size > self.output_limit:
+                    size = output.stat().st_size
+                    if size == 0:
+                        raise JobError("PDF worker returned an invalid result.")
+                    if size > self.output_limit:
                         raise JobError("PDF output exceeds the configured size limit.", 400)
                     return io.BytesIO(output.read_bytes()), mime
+            except BaseException as error:
+                pending = error
+                raise
             finally:
-                if worker is not None: worker.close()
+                if worker is not None:
+                    _cleanup_preserving_interrupt(worker.close, "worker cleanup", pending)
 
 
 runner = JobRunner()

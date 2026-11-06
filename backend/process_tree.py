@@ -6,11 +6,58 @@ before any work starts. POSIX containment covers descendants that retain the
 worker's process group; this is lifecycle isolation, not a security sandbox.
 """
 
+from contextlib import contextmanager
 import os
 import signal
 import subprocess
 import threading
 import time
+
+
+class _Cleanup:
+    """Bounded best effort which defers the first failure until cleanup ends."""
+
+    def __init__(self):
+        self.error = None
+
+    def attempt(self, operation):
+        # In particular, a one-shot SIGINT at a native call boundary must not
+        # prevent the TERM/KILL fallback or reaping. Persistent errors stay
+        # retryable by the caller; never spin forever on repeated interrupts.
+        for _ in range(2):
+            try:
+                operation()
+                return True
+            except BaseException as error:
+                if self.error is None:
+                    self.error = error
+        return False
+
+    def propagate(self):
+        if self.error is not None:
+            raise self.error
+
+
+@contextmanager
+def _defer_handle_close_sigint():
+    """Update Windows handle ownership before dispatching a pending SIGINT.
+
+    Python signal handlers run only in the main thread. Do not replay a native
+    CloseHandle merely because SIGINT arrived after its irreversible side effect.
+    This small critical section does not cover SIGKILL, host loss or native hangs.
+    """
+    handler = signal.getsignal(signal.SIGINT)
+    if threading.current_thread() is not threading.main_thread() or not callable(handler):
+        yield
+        return
+    pending = []
+    signal.signal(signal.SIGINT, lambda number, frame: pending.append((number, frame)))
+    try:
+        yield
+    finally:
+        signal.signal(signal.SIGINT, handler)
+        if pending:
+            handler(*pending[0])
 
 
 class _WindowsJob:
@@ -80,12 +127,30 @@ class _WindowsJob:
             raise self._ctypes.WinError(self._ctypes.get_last_error())
 
     def close(self):
-        if self._handle is not None:
-            handle, self._handle = self._handle, None
-            # Kill explicitly and also retain kill-on-close as a fallback.
-            self._api.TerminateJobObject(handle, 1)
-            if not self._api.CloseHandle(handle):
+        if self._handle is None:
+            return
+        cleanup = _Cleanup()
+        handle = self._handle
+
+        def terminate():
+            if not self._api.TerminateJobObject(handle, 1):
                 raise self._ctypes.WinError(self._ctypes.get_last_error())
+
+        def close_handle():
+            if self._handle is None:
+                return
+            with _defer_handle_close_sigint():
+                if not self._api.CloseHandle(handle):
+                    raise self._ctypes.WinError(self._ctypes.get_last_error())
+                # Retain failed handles, but never replay a successful native
+                # close after Python dispatches a deferred SIGINT.
+                self._handle = None
+
+        try:
+            cleanup.attempt(terminate)
+        finally:
+            cleanup.attempt(close_handle)
+        cleanup.propagate()
 
 
 class ManagedProcess:
@@ -95,6 +160,7 @@ class ManagedProcess:
         self.process = None
         self._job = None
         self._closed = False
+        self._tree_stopped = False
         self._released = False
         self._lock = threading.RLock()
         if os.name not in ("posix", "nt"):
@@ -139,48 +205,70 @@ class ManagedProcess:
                 raise
 
     def close(self):
-        """Stop the tree even if its leader exited, and reap the leader."""
+        """Attempt tree termination/reaping, then propagate the first failure.
+
+        Completed stages are retained across retries. This is bounded best
+        effort, not protection against SIGKILL, host loss or persistent OS errors.
+        """
         with self._lock:
             if self._closed:
                 return
-            self._closed = True
+            cleanup = _Cleanup()
             process = self.process
-            try:
-                if process is not None:
-                    if os.name == "posix":
-                        try:
-                            os.killpg(process.pid, signal.SIGTERM)
-                        except ProcessLookupError:
-                            pass
-                        else:
-                            # Waiting for only the leader would skip the grace
-                            # period when it has exited but children remain.
-                            try:
-                                time.sleep(0.2)
-                            finally:
-                                # An interruption during grace must still kill
-                                # descendants, not just the direct child.
-                                try:
-                                    os.killpg(process.pid, signal.SIGKILL)
-                                except ProcessLookupError:
-                                    pass
-            finally:
+            stdin_closed = process is None or process.stdin is None
+            reaped = process is None
+            handle_closed = os.name != "nt" or process is None
+            term_sent = False
+
+            def group_signal(sig):
+                nonlocal term_sent
                 try:
-                    if self._job is not None:
-                        self._job.close()
-                finally:
-                    if process is not None:
-                        try:
-                            if process.stdin is not None:
-                                try:
-                                    process.stdin.close()
-                                except (OSError, ValueError):
-                                    pass
-                            if process.poll() is None:
-                                process.kill()
-                            process.wait(timeout=2)
-                        finally:
-                            # CPython's Windows Popen otherwise retains this
-                            # native process handle until garbage collection.
-                            if os.name == "nt" and process.returncode is not None:
-                                process._handle.Close()
+                    os.killpg(process.pid, sig)
+                    if sig == signal.SIGTERM:
+                        term_sent = True
+                except ProcessLookupError:
+                    # The numeric PGID can be reused once its group disappears.
+                    # Treat absence as completed teardown, never signal it again.
+                    self._tree_stopped = True
+
+            def close_stdin():
+                try:
+                    process.stdin.close()
+                except (OSError, ValueError):
+                    # A broken release pipe may already be closed.
+                    if not process.stdin.closed:
+                        raise
+
+            def kill_leader():
+                if process.poll() is None:
+                    try:
+                        process.kill()
+                    except ProcessLookupError:
+                        pass
+
+            try:
+                if process is not None and os.name == "posix" and not self._tree_stopped:
+                    cleanup.attempt(lambda: group_signal(signal.SIGTERM))
+                    if term_sent:
+                        cleanup.attempt(lambda: time.sleep(0.2))
+            finally:
+                # This fallback covers TERM as well as grace-period failures.
+                # Keep it independent of leader exit; descendants can outlive it.
+                if not self._tree_stopped:
+                    if os.name == "posix" and process is not None:
+                        self._tree_stopped = cleanup.attempt(lambda: group_signal(signal.SIGKILL))
+                    elif self._job is not None:
+                        self._tree_stopped = cleanup.attempt(self._job.close)
+                    else:
+                        self._tree_stopped = True
+                # Once group teardown succeeds, never signal that numeric PGID
+                # again just because a later pipe/wait/handle operation failed.
+                if process is not None:
+                    if process.stdin is not None:
+                        stdin_closed = cleanup.attempt(close_stdin)
+                    cleanup.attempt(kill_leader)
+                    reaped = cleanup.attempt(lambda: process.wait(timeout=2))
+                    if os.name == "nt" and reaped:
+                        handle_closed = cleanup.attempt(process._handle.Close)
+                self._closed = self._tree_stopped and stdin_closed and reaped and handle_closed
+            cleanup.propagate()
