@@ -160,3 +160,16 @@ describe('convertToImages', () => {
     await expect(convertToImages(file)).rejects.toThrow('Network error')
   })
 })
+
+// Worker overload/timeout keep the existing JSON error contract. The client
+// surfaces the message without silently retrying and duplicating a PDF job.
+describe.each([503, 504])('worker failure HTTP %i', (status) => {
+  it.each(['merge', 'convert'] as const)('surfaces the JSON error for %s', async (operation) => {
+    const message = status === 503 ? 'PDF processing is busy. Please retry shortly.' : 'PDF processing timed out after 60 seconds.'
+    const fetchMock = vi.fn().mockResolvedValue(makeResponse(false, status, 'application/json', { error: message }))
+    vi.stubGlobal('fetch', fetchMock)
+    const file = new File(['%PDF-1.4'], 'synthetic.pdf', { type: 'application/pdf' })
+    await expect(operation === 'merge' ? mergePdfs([file, file]) : convertToImages(file, 'jpg')).rejects.toThrow(message)
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+})

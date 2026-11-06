@@ -198,13 +198,11 @@ def validate_not_encrypted(pdf_bytes: bytes, filename: str) -> None:
 
 def validate_uncompressed_size(pdf_bytes: bytes, filename: str, max_bytes: int) -> None:
     """
-    PDF bomb protection — estimate uncompressed size by reading all stream objects.
+    Best-effort decoded-stream budget, run inside a disposable worker.
 
     Aborts with 400 if the estimated uncompressed size exceeds max_bytes.
-    This prevents decompression bombs (tiny compressed PDFs that expand to
-    gigabytes of data) from exhausting server memory.
-
-    All processing is in-memory (io.BytesIO) — no files are written to disk.
+    Each stream is allocated before it can be measured; unsupported filters may
+    be skipped. This is not a complete decompression-bomb or memory defense.
 
     Args:
         pdf_bytes: Raw bytes of the PDF file.
@@ -221,6 +219,8 @@ def validate_uncompressed_size(pdf_bytes: bytes, filename: str, max_bytes: int) 
                         total += len(obj.read_bytes())
                     elif hasattr(obj, 'read_bytes'):
                         total += len(obj.read_bytes())
+                except MemoryError:
+                    raise
                 except Exception:
                     pass
                 if total > max_bytes:

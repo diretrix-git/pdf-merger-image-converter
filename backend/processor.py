@@ -1,14 +1,12 @@
 """
 PDF processing logic — merge and image conversion.
 
-All operations are performed entirely in memory using io.BytesIO.
-No files are written to disk at any point. The "isolated temp dir"
-requirement from the spec is satisfied by this in-memory approach.
+Synchronous processing cores. Production routes invoke these only inside a
+disposable worker supervised by jobs.py. Poppler can use temporary files.
 """
 
 import io
 import logging
-import threading
 import zipfile
 
 import pikepdf
@@ -16,45 +14,8 @@ import pypdf
 # pdf2image kept as fallback — PyMuPDF is the primary renderer
 from pdf2image import convert_from_bytes
 
-from config import PROCESSING_TIMEOUT_SECONDS
 
 logger = logging.getLogger(__name__)
-
-
-# ---------------------------------------------------------------------------
-# Timeout helper (cross-platform — uses threading, not signal.alarm)
-# ---------------------------------------------------------------------------
-
-class _TimeoutError(Exception):
-    pass
-
-
-def _run_with_timeout(fn, timeout_seconds: int):
-    """
-    Run fn() in a thread. Raise _TimeoutError if it doesn't finish in time.
-    Works on both Windows and Unix (signal.alarm is Unix-only).
-    """
-    result = [None]
-    exc = [None]
-
-    def target():
-        try:
-            result[0] = fn()
-        except Exception as e:
-            exc[0] = e
-
-    t = threading.Thread(target=target, daemon=True)
-    t.start()
-    t.join(timeout=timeout_seconds)
-
-    if t.is_alive():
-        raise _TimeoutError(
-            f"Processing timed out after {timeout_seconds} seconds. "
-            "The PDF may be too complex."
-        )
-    if exc[0] is not None:
-        raise exc[0]
-    return result[0]
 
 
 # ---------------------------------------------------------------------------
@@ -127,17 +88,17 @@ def _strip_dangerous_keys(obj, visited: set | None = None) -> None:
 
 def strip_and_merge_pdfs(pdf_bytes_list: list[bytes]) -> io.BytesIO:
     """
-    Merge PDFs using pikepdf with full security hardening:
+    Merge PDFs using pikepdf and the existing action/metadata cleanup:
 
     - Deep recursive stripping of JavaScript, AA, OpenAction, Launch,
       SubmitForm, ImportData, RichMedia, and EmbeddedFiles at every
       nesting level in the object tree
     - Strips document metadata (XMP + docinfo) from the output
     - Handles mixed page sizes gracefully (pikepdf preserves MediaBox)
-    - Hard timeout via threading (cross-platform)
+    - Lifecycle and time limits are enforced by the production worker supervisor
     - Raises ValueError on password-protected or corrupted inputs
 
-    All processing is in-memory (io.BytesIO) — no files are written to disk.
+    This core uses BytesIO; its production supervisor stages files on disk.
 
     Args:
         pdf_bytes_list: List of raw PDF bytes, one per input file.
@@ -180,10 +141,7 @@ def strip_and_merge_pdfs(pdf_bytes_list: list[bytes]) -> io.BytesIO:
         buf.seek(0)
         return buf
 
-    try:
-        return _run_with_timeout(_do_merge, PROCESSING_TIMEOUT_SECONDS)
-    except _TimeoutError as e:
-        raise ValueError(str(e))
+    return _do_merge()
 
 
 def merge_pdfs(pdf_streams: list[io.BytesIO]) -> io.BytesIO:
@@ -221,7 +179,7 @@ def merge_pdfs(pdf_streams: list[io.BytesIO]) -> io.BytesIO:
 
 def convert_to_images(pdf_bytes: bytes, dpi: int = 72, fmt: str = "png") -> tuple[io.BytesIO, str]:
     """
-    Convert each page of a PDF to an image, with a hard processing timeout.
+    Convert each page of a PDF to an image inside the production worker boundary.
 
     Args:
         pdf_bytes: Raw PDF bytes.
@@ -279,14 +237,18 @@ def convert_to_images(pdf_bytes: bytes, dpi: int = 72, fmt: str = "png") -> tupl
         logger.warning("PyMuPDF failed — falling back to pdf2image/Poppler")
         images = convert_from_bytes(pdf_bytes, dpi=dpi)
         result = []
-        for image in images:
-            buf = io.BytesIO()
-            if pil_fmt == "JPEG":
-                image.save(buf, format="JPEG", quality=85, optimize=True)
-            else:
-                image.save(buf, format="PNG", compress_level=1)
-            result.append(buf.getvalue())
-        return result
+        try:
+            for image in images:
+                with io.BytesIO() as buf:
+                    if pil_fmt == "JPEG":
+                        image.save(buf, format="JPEG", quality=85, optimize=True)
+                    else:
+                        image.save(buf, format="PNG", compress_level=1)
+                    result.append(buf.getvalue())
+            return result
+        finally:
+            for image in images:
+                image.close()
 
     def _do_convert() -> tuple[io.BytesIO, str]:
         try:
@@ -311,7 +273,4 @@ def convert_to_images(pdf_bytes: bytes, dpi: int = 72, fmt: str = "png") -> tupl
         zip_buffer.seek(0)
         return zip_buffer, "application/zip"
 
-    try:
-        return _run_with_timeout(_do_convert, PROCESSING_TIMEOUT_SECONDS)
-    except _TimeoutError as e:
-        raise ValueError(str(e))
+    return _do_convert()

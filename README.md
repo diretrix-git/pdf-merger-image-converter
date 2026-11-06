@@ -1,134 +1,106 @@
 # MergeSnap
 
-A personal-use web app for PDF processing — no sign-up, no storage, nothing sent to the cloud.
+A React and Flask PDF utility. Merge PDF files in their selected file order, or convert a PDF to PNG/JPG images. Uploads are sent to the configured Flask API. Processing is server-side; running both services locally keeps those uploads on that machine.
 
-All processing happens in-memory on your local machine. Files are never written to disk and are gone the moment the response is sent.
+## Workflows
 
----
+- Merge 2–8 PDFs; drag to reorder whole files on desktop/mobile. Individual-page rearrangement is not implemented.
+- Convert at 72 DPI to PNG or JPG (`jpeg` is accepted by the API). One page returns an image; multiple pages return an ordered ZIP.
+- Choose the download filename in the frontend.
 
-## Features
+## Processing and privacy
 
-- **Merge PDFs** — combine up to 8 PDFs into one file, in the exact order you choose
-- **Drag to reorder** — drag files up or down before merging (works on both desktop and mobile)
-- **Convert to PNG or JPG** — convert a PDF's pages to images; choose your format before converting
-- **Custom filenames** — name your output file before downloading
-- **Privacy first** — all processing is in-memory, files are deleted immediately after download
+Each admitted request uses a disposable Python subprocess. The supervisor terminates its process group on POSIX, or its Windows Job Object, on completion/error/timeout/cancellation, then reaps the direct child and removes the private job directory. Inputs, protocol files, renderer intermediates and output may temporarily exist on disk. Multipart parsing can also spool uploads outside that directory. Response bytes stay in the API process until the response closes.
 
----
+This is lifecycle isolation, not a hostile-file sandbox, secure erasure, or a hosting-level retention guarantee. A browser disconnect does not reliably interrupt WSGI computation: work can continue until completion or the configured deadline. Abrupt API/host termination can bypass Python cleanup. See [rollout and limitations](docs/phase3-rollout.md) before exposing the API publicly.
 
-## Stack
+## Stack and prerequisites
 
-| Layer | Tech |
+Backend: Python 3.11+, Flask, pikepdf, PyMuPDF; pdf2image/Poppler fallback. Frontend: React, TypeScript, Vite, Tailwind. Pinned dependencies remain unchanged in this repair; process supervision uses the Python standard library.
+
+Install `libmagic` for MIME inspection (Linux: `libmagic1`; macOS: `brew install libmagic`; Windows needs a compatible libmagic installation). Poppler is optional for the primary renderer, required for fallback:
+
+| OS | Poppler installation |
 |---|---|
-| Backend | Python 3.11, Flask 3.1, pikepdf 9.4, PyMuPDF 1.25, Flask-Limiter 3.9 |
-| Frontend | React 19, TypeScript, Vite 5, Tailwind CSS 3, Framer Motion 12, Locomotive Scroll 4 |
+| Linux | `sudo apt install poppler-utils libmagic1` |
+| macOS | `brew install poppler libmagic` |
+| Windows | See [Poppler Windows builds](https://github.com/oschwartz10612/poppler-windows/releases); add `Library\bin` to PATH |
 
----
+Linux/Python 3.12 was exercised locally. Windows containment is implemented but has not been runtime-verified; macOS and the Python 3.11 Docker image also require platform validation.
 
-## Prerequisites
+## Local setup
 
-- **Python 3.11+**
-- **Node.js 18+**
-- **Poppler** — optional fallback for PDF→image conversion (PyMuPDF handles most cases without it)
-
-### Installing Poppler (optional)
-
-| OS | Command |
-|---|---|
-| Windows | Download from [poppler-windows releases](https://github.com/oschwartz10612/poppler-windows/releases), extract, add `Library\bin\` to system PATH |
-| macOS | `brew install poppler` |
-| Linux | `sudo apt install poppler-utils` |
-
----
-
-## Running Locally
-
-### Backend (port 5000)
+From the repository root:
 
 ```bash
-cd pdf-app/backend
-
-python -m venv venv
-venv\Scripts\activate        # Windows
-source venv/bin/activate     # macOS/Linux
-
+cd backend
+python -m venv .venv
+# Linux/macOS:
+source .venv/bin/activate
+# Windows PowerShell instead: .venv\Scripts\Activate.ps1
 pip install -r requirements.txt
-flask run --port 5000
+flask --app app run --port 5000
 ```
 
-### Frontend (port 5173)
+In another terminal:
 
 ```bash
-cd pdf-app/frontend
-npm install
+cd frontend
+npm ci
 npm run dev
 ```
 
-Open `http://localhost:5173`.
+Open `http://localhost:5173`. `VITE_API_URL` defaults to `http://localhost:5000`; a hosted frontend must point it at the intended API. CORS currently allows localhost:5173 and the existing Vercel frontend origin. CORS is not authentication or server-side access control.
 
----
+## API and limits
 
-## API
-
-| Method | Endpoint | Description |
+| Endpoint | Request | Successful response |
 |---|---|---|
-| POST | `/merge` | Merge 2–8 PDFs. Form field: `files` (multiple). Returns `merged.pdf`. |
-| POST | `/to-images` | Convert a PDF to images. Form fields: `file` (single), `format` (`png` or `jpg`). Returns image (1 page) or ZIP (multi-page). |
-| GET | `/health` | Reports server status and Poppler availability. |
+| `POST /merge` | Multipart `files` (2–8 PDFs), in order | `application/pdf`, `merged.pdf` |
+| `POST /to-images` | Multipart `file`, optional `format=png\|jpg\|jpeg` | `page.png` / `page.jpg`, or `application/zip`, `pages.zip` |
+| `GET /health` | None | API status and Poppler availability; does not execute a PDF job |
 
-### Limits
+Validation errors use JSON `{"error":"..."}` with HTTP 400; oversized bodies use 413, IP rate limits 429, processing timeout 504, worker crash/resource death 500. Capacity exhaustion returns 503 with `Retry-After: 1`, without an application waiting queue. Retry is manual, not automatic. A transport or proxy can still queue requests before Flask handles them.
 
-| Limit | Value |
+| Policy | Default |
 |---|---|
-| Per-file size | 50 MB |
-| Combined request size | 50 MB |
-| Files per merge | 8 max |
-| Pages per conversion | 15 max |
-| Output DPI | 72 |
-| Rate limit | 10 requests/minute, 50/day per IP |
+| Per input / entire request body | 50 MiB / 50 MiB (multipart overhead counts toward body limit) |
+| Merge file count / conversion page count | 8 / 15 |
+| Conversion DPI | 72 |
+| Decoded-stream scan per input | 100 MiB; best effort, including inputs below 5 MiB |
+| Render budget | 20 million pixels per page, 40 million across pages |
+| Upload IP limit | 10/minute and 50/day; in-memory per API process |
+| `PDF_MAX_JOBS` | 1 per API process; no application queue |
+| `PDF_TIMEOUT_SECONDS` | 60 seconds from job staging through worker exit; termination/reaping adds cleanup time |
+| `PDF_WORKER_MEMORY_MB` | POSIX 512 MiB of virtual address space per process; Windows 0 (external controls required) |
+| `PDF_WORKER_CPU_SECONDS` | POSIX 30 CPU seconds per process; Windows 0 |
+| `PDF_MAX_OUTPUT_BYTES` | 100 MiB returned output; POSIX also applies this as a per-file worker size limit |
 
----
+Resource settings of 0 disable the corresponding optional memory/CPU limit. A nonzero memory/CPU setting on Windows is rejected at startup, because this implementation does not enforce those budgets there. Environment configuration is read at API startup. Per-process resource limits do not cap aggregate process-tree memory, all temporary disk usage, the parent API, or request/response buffers.
 
-## Security
+MIME/magic-byte checks, encrypted-PDF checks, conversion page limits and decoded-stream inspection remain. Deep inspection and processing run in the worker. The stream scan allocates before measuring and can skip unsupported filters, so it is not comprehensive decompression-bomb protection. The new pixel/output budgets deliberately reject oversized work which formerly could exhaust resources. Merging retains the existing selected action-key and metadata removal; no complete PDF sanitization guarantee is made.
 
-- File content validated by magic bytes (`%PDF-`) and MIME type inspection — not just file extension
-- Password-protected PDFs rejected with a clear error
-- PDF bomb protection — uncompressed stream size checked before processing
-- Embedded JavaScript, auto-actions, and dangerous PDF keys stripped recursively from all merged output
-- Document metadata (author, creator, dates) stripped from merged output
-- Filenames sanitized with `werkzeug.secure_filename` before any use
-- CORS locked to `http://localhost:5173` and `https://pdf-merger-image-converter.vercel.app`
-- IP-based rate limiting on all upload endpoints
-
----
-
-## Running Tests
+## Validation
 
 ```bash
-# Backend (51 tests)
-cd pdf-app/backend
-pytest tests/ -v
-
-# Frontend (37 tests)
-cd pdf-app/frontend
+cd backend
+python -m pytest tests/ -q
+python -m compileall -q .
+python -m pip check
+# Frontend, from repository root:
+cd ../frontend
 npx vitest run
+npx tsc -b --pretty false
+npm run build
+npm run lint
 ```
 
-Tests that require Poppler are automatically skipped when it's not installed.
+Backend tests generate synthetic documents and exercise process termination, descendant cleanup, timeout, cancellation, crash, concurrency, overload, validation and normal response formats. Some existing renderer tests skip without Poppler. The new forced-fallback test also skips when Poppler is unavailable. The backend has no configured static type checker, linter, or application bundle build; byte-compilation is a syntax check, not a substitute for those tools.
 
----
+Actual results, baseline lint failures and platform gaps are in [Phase 3 validation](docs/phase3-validation.md). These are local checks, not deployment success.
 
-## Deployment
+## Rollout and licensing
 
-### Backend → Render (Docker)
-1. Create a new **Web Service** on [render.com](https://render.com)
-2. Connect your GitHub repo
-3. Set **Runtime** to **Docker**, **Root Directory** to `pdf-app/backend`
-4. Deploy — the `Dockerfile` installs all dependencies automatically
-5. Copy your Render URL → add to CORS in `backend/app.py` → redeploy
+The backend Docker command uses one API worker with four threads, so an occupied PDF slot can coexist with overload/health requests. It sets a 75-second graceful shutdown allowance for the default 60-second job deadline. Changing deadlines requires reviewing server/proxy/container shutdown settings together. Configure shared rate limiting before relying on an installation-wide IP quota across multiple API processes.
 
-### Frontend → Vercel
-1. Connect your GitHub repo on [vercel.com](https://vercel.com)
-2. Set **Root Directory** to `pdf-app/frontend`
-3. Add environment variable: `VITE_API_URL` = your Render URL
-4. Deploy
+This implementation branch suppresses Vercel Git deployments for its exact branch name in root, frontend and backend configuration files. It does not alter production branch behavior or hosting settings. No deployment is part of this change. Follow [the rollout checklist](docs/phase3-rollout.md) after review and approval, including dependency-license review. In particular, the existing PyMuPDF package is dual AGPL/commercial licensed. No repository-wide license grant has been added.
