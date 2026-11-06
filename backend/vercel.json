@@ -1,0 +1,7 @@
+{
+  "git": {
+    "deploymentEnabled": {
+      "fix/phase3-isolated-pdf-workers-2026-11-06": false
+    }
+  }
+}
